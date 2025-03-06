@@ -1,4 +1,4 @@
-# Ontology & AI Project
+# AI Ontology Extension
 
 An AI-assisted ontology development workflow that ingests data from various sources and uses a combination of data profiling, NER, and AI suggestions to extract candidate ontology entities.
 
