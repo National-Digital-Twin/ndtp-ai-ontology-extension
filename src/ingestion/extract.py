@@ -1,31 +1,53 @@
 """
 Entity Extraction Module for Ontology Development
 
-This module provides functionality to extract candidate entities from tabular data
-for ontology development. It uses multiple extraction methods including:
+This module provides functionality to extract candidate ontology terms from tabular data
+for ontology development. It supports classifying candidate terms as either Entities or States.
+If classification is activated (classify_candidates=True), the ChatGPT prompts are adjusted
+to instruct the model to return a JSON array of objects, where each object includes a "term"
+and a "classification" (either "entity" or "state").
 
-1. spaCy Named Entity Recognition (NER) for identifying entities in text
-2. ChatGPT API for intelligent entity extraction and fuzzy matching
+It uses multiple extraction methods including:
+1. spaCy Named Entity Recognition (NER) for identifying terms in text.
+2. OpenAI ChatGPT API for intelligent extraction and fuzzy (semantic) matching.
+   For ChatGPT-based fuzzy matching, a HYBRID approach is used:
+      - Local pre-filtering with RapidFuzz to select the top-N likely matches.
+      - Chunking the pre-filtered terms to keep prompts small, then performing semantic matching via ChatGPT.
 
-The module supports processing CSV and JSON files, extracting entities from textual
-columns, and optionally matching these entities against existing ontology constraints
-using fuzzy matching algorithms.
+A configuration parameter, `chatgpt_model`, is available to choose the ChatGPT API model
+(e.g., "gpt-4o-mini" by default). The `candidate_type` parameter (default "entity")
+controls the basic candidate term wording, and the `classify_candidates` flag adds classification
+instructions to the prompt and output.
 
-Key functions:
-- extract_entities_spacy: Extract entities using spaCy NER
-- extract_entities_chatgpt: Extract entities using ChatGPT
-- fuzzy_matches: Match candidate entities against ontology constraints using RapidFuzz
-- fuzzy_matches_chatgpt: Match candidate entities using ChatGPT
-- process_data: Main function to process data files and extract entities
+Additionally, a secondary verification method is included. After extraction, the output is
+checked to ensure that it exactly follows the structure:
+    {
+      "sample_values": [ ... ],
+      "entities": {
+         "spacy": [ ... ],
+         "chatgpt": [ ... ],
+         "matches": {
+            "spacy": [ ... ],
+            "chatgpt": [ ... ]
+         }
+      }
+    }
+If not, a query is sent to ChatGPT to fix the JSON structure.
 
-Usage:
+Usage Example:
     results = process_data(
-        file_path='data.csv',
-        output_path='entities.json',
+        file_path='data/raw/mydata.csv',
+        output_path='results/candidate_entities.json',
         method='both',
-        ontology_constraints_path='ontology.json',
+        ontology_constraints_path='data/ontologies/ontology_entities.json',
         fuzzy_threshold=80,
-        fuzzy_method='rapidfuzz'
+        fuzzy_method='chatgpt',
+        chatgpt_model='gpt-4o-mini',
+        candidate_type='entity',       # or "state"
+        classify_candidates=True,        # Activate classification in the output
+        chunk_size=100,
+        top_n=20,
+        verify_structure=True           # Activate secondary verification/fixing step
     )
 """
 
@@ -33,52 +55,81 @@ import os
 import json
 import pandas as pd
 import spacy
-import openai
 from rapidfuzz import fuzz
+from openai import OpenAI
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+if client.api_key is None:
+    print("Warning: OPENAI_API_KEY is not set. ChatGPT queries will be skipped.")
 
 from .helpers import read_data
 
-
-# Set up OpenAI API key from the environment (non-fatal if missing)
-openai.api_key = os.getenv("OPENAI_API_KEY")
-if openai.api_key is None:
-    print("Warning: OPENAI_API_KEY is not set. ChatGPT queries will be skipped.")
-
-# Load the spaCy model for NER
-nlp = spacy.load("en_core_web_sm")
+# Attempt to load the spaCy model; if unavailable, skip spaCy extraction.
+try:
+    nlp = spacy.load("en_core_web_sm")
+except Exception as e:
+    print(
+        "Warning: spaCy model 'en_core_web_sm' not found. spaCy-based extraction will be skipped."
+    )
+    nlp = None
 
 
 def extract_entities_spacy(text):
     """
-    Extract candidate entities from text using spaCy NER.
-    Returns a sorted list of unique entity strings.
+    Extract candidate terms from text using spaCy NER.
+    Returns a sorted list of unique term strings.
+    If spaCy is not available, returns an empty list.
     """
+    if nlp is None:
+        print("Warning: spaCy model not loaded; skipping spaCy extraction.")
+        return []
     doc = nlp(text)
     entities = sorted({ent.text for ent in doc.ents})
     return entities
 
 
-def extract_entities_chatgpt(column_name, sample_values):
+def extract_entities_chatgpt(
+    column_name,
+    sample_values,
+    candidate_type="entity",
+    chatgpt_model="gpt-4o-mini",
+    classify_candidates=False,
+):
     """
     Build a prompt for ChatGPT based on the column name and sample values.
-    Queries ChatGPT (GPT-4o-mini) to identify candidate ontology entities.
-    Returns a sorted list of unique entity names.
+    Queries ChatGPT (using the specified model) to identify candidate terms.
+
+    If classify_candidates is True, the prompt instructs ChatGPT to classify each candidate
+    as either an "entity" or a "state", and to return a JSON array of objects with keys "term"
+    and "classification". Otherwise, a simple JSON array of term strings is expected.
+
+    Returns a sorted list of candidate terms (or objects if classification is active).
     """
-    if not openai.api_key:
+    if not client.api_key:
         print(
             f"Warning: ChatGPT extraction skipped for column '{column_name}' because OPENAI_API_KEY is not set."
         )
         return []
 
-    prompt = (
-        f"Given the following sample values for the column '{column_name}': {sample_values}. "
-        "Identify potential entities or concepts that could be represented in an ontology. "
-        'Return a JSON array of candidate entity names. For example: ["Entity1", "Entity2"].'
-    )
+    if classify_candidates:
+        prompt = (
+            f"Given the following sample values for the column '{column_name}': {sample_values}. "
+            f"Identify potential {candidate_type}s or concepts that could be represented in an ontology. "
+            "For each candidate, classify it as either 'entity' or 'state'. "
+            'Return a JSON array of objects, each with keys "term" and "classification". '
+            "Return only the JSON array without any markdown formatting or extra text."
+        )
+    else:
+        prompt = (
+            f"Given the following sample values for the column '{column_name}': {sample_values}. "
+            f"Identify potential {candidate_type}s or concepts that could be represented in an ontology. "
+            "Return a JSON array of candidate names. "
+            "Return only the JSON array without any markdown formatting or extra text."
+        )
 
     try:
-        response = openai.chat.completions.create(
-            model="gpt-4o-mini",
+        response = client.chat.completions.create(
+            model=chatgpt_model,
             messages=[
                 {"role": "system", "content": "You are an ontology expert."},
                 {"role": "user", "content": prompt},
@@ -97,81 +148,247 @@ def extract_entities_chatgpt(column_name, sample_values):
         return []
 
     try:
-        entities = json.loads(answer)
-        if not isinstance(entities, list):
-            entities = []
+        terms = json.loads(answer)
     except Exception as e:
         print("Error parsing JSON from ChatGPT response:", e)
-        entities = [line.strip() for line in answer.splitlines() if line.strip()]
+        terms = [line.strip() for line in answer.splitlines() if line.strip()]
 
-    return sorted(set(entities))
+    if classify_candidates:
+        try:
+            return sorted(terms, key=lambda x: x.get("term", ""))
+        except Exception:
+            return terms
+    else:
+        return sorted(set(terms))
 
 
 def fuzzy_matches(candidate_list, constraints_list, threshold=80):
     """
     Return a sorted list of ontology terms from constraints_list that have a fuzzy
     match (using rapidfuzz.token_sort_ratio) to any of the candidate_list entries.
+    Uses string-based matching.
     """
     matches = set()
     for candidate in candidate_list:
+        candidate_str = (
+            candidate.get("term", "") if isinstance(candidate, dict) else str(candidate)
+        )
         for constraint in constraints_list:
-            if fuzz.token_sort_ratio(candidate, constraint) >= threshold:
-                matches.add(constraint)
+            if fuzz.token_sort_ratio(candidate_str, str(constraint)) >= threshold:
+                matches.add(str(constraint))
                 break
     return sorted(matches)
 
 
-def fuzzy_matches_chatgpt(candidate_list, constraints_list, threshold=80):
+def get_top_n_rapidfuzz(candidate, constraints_list, top_n=20):
     """
-    Use ChatGPT to perform fuzzy matching.
-    Constructs a prompt with the candidate entities and ontology constraints and
-    asks ChatGPT to return a JSON array of matching ontology terms.
+    For a single candidate term, returns the top N constraints by RapidFuzz similarity.
+    If the candidate is a dictionary, uses its 'term' key.
+    Sorted by descending similarity.
     """
-    if not openai.api_key:
+    candidate_str = (
+        candidate.get("term", "") if isinstance(candidate, dict) else str(candidate)
+    )
+    scored = [
+        (str(constraint), fuzz.token_sort_ratio(candidate_str, str(constraint)))
+        for constraint in constraints_list
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [constraint for constraint, score in scored[:top_n]]
+
+
+def fuzzy_matches_chatgpt(
+    candidate_list,
+    constraints_list,
+    threshold=80,
+    chunk_size=200,
+    top_n=20,
+    candidate_type="entity",
+    chatgpt_model="gpt-4o-mini",
+    classify_candidates=False,
+):
+    """
+    Use a HYBRID approach to ChatGPT fuzzy matching, combining RapidFuzz pre-filtering
+    with final semantic verification by ChatGPT. This avoids large prompts when matching
+    candidate terms against a big ontology.
+
+    1) For each candidate term, select the top_n constraints with the highest string similarity via RapidFuzz.
+    2) Combine these top matches into a unique set (prefiltered).
+    3) Split the prefiltered set into chunks of size 'chunk_size'.
+    4) For each chunk, call ChatGPT for semantic matching.
+       If classify_candidates is True, instruct ChatGPT to return a JSON array of objects
+       with "term" and "classification"; otherwise, return a JSON array of strings.
+    5) Return a sorted, unique list of final matched ontology terms.
+    """
+    if not client.api_key:
         print(
             "Warning: OPENAI_API_KEY is not set. Cannot perform fuzzy matching via ChatGPT."
         )
         return []
 
+    prefiltered = set()
+    for candidate in candidate_list:
+        top_matches = get_top_n_rapidfuzz(candidate, constraints_list, top_n=top_n)
+        prefiltered.update(top_matches)
+
+    if not prefiltered:
+        return []
+
+    prefiltered_list = sorted(prefiltered)
+    candidate_type_text = "entities" if candidate_type.lower() == "entity" else "states"
+    all_matches = set()
+
+    for i in range(0, len(prefiltered_list), chunk_size):
+        chunk = prefiltered_list[i : i + chunk_size]
+        if classify_candidates:
+            prompt = (
+                f"Here are candidate ontology {candidate_type_text}: {candidate_list}.\n"
+                f"Here are known ontology terms: {chunk}.\n"
+                f"Using a similarity threshold of {threshold} (0 to 100), please return a JSON array of objects. "
+                "Each object should have keys 'term' (an ontology term from the known list that is similar) and "
+                "'classification' (either 'entity' or 'state'). "
+                "Return only the JSON array without any markdown formatting or additional text."
+            )
+        else:
+            prompt = (
+                f"Here are candidate ontology {candidate_type_text}: {candidate_list}.\n"
+                f"Here are known ontology terms: {chunk}.\n"
+                f"Using a similarity threshold of {threshold} (0 to 100), please return a JSON array of ontology terms "
+                f"from the known list that are similar to the candidate {candidate_type_text}. "
+                "Return only the JSON array without any markdown formatting or additional text."
+            )
+
+        try:
+            response = client.chat.completions.create(
+                model=chatgpt_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert in ontology matching.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.2,
+                max_tokens=150,
+            )
+        except Exception as e:
+            print("Error calling OpenAI API for fuzzy matching:", e)
+            continue
+
+        try:
+            answer = response.choices[0].message.content.strip()
+            if not answer:
+                continue  # Skip empty responses
+        except Exception as e:
+            print("Error accessing response fields for fuzzy matching:", e)
+            continue
+
+        try:
+            matches_chunk = json.loads(answer)
+            if not isinstance(matches_chunk, list):
+                matches_chunk = [
+                    line.strip() for line in answer.splitlines() if line.strip()
+                ]
+        except Exception as e:
+            print("Error parsing JSON from ChatGPT fuzzy matching response:", e)
+            matches_chunk = [
+                line.strip() for line in answer.splitlines() if line.strip()
+            ]
+
+        for m in matches_chunk:
+            if classify_candidates:
+                if isinstance(m, dict):
+                    if m.get("term"):
+                        all_matches.add(json.dumps(m))
+                else:
+                    try:
+                        m_obj = json.loads(m)
+                        if m_obj.get("term"):
+                            all_matches.add(json.dumps(m_obj))
+                    except Exception:
+                        pass
+            else:
+                all_matches.add(m)
+
+    if classify_candidates:
+        all_matches = [json.loads(x) for x in all_matches]
+        return sorted(all_matches, key=lambda x: x.get("term", ""))
+    else:
+        return sorted(all_matches)
+
+
+def verify_and_fix_column_structure(column_data, chatgpt_model="gpt-4o-mini"):
+    """
+    Verify that a column's output exactly matches the expected structure:
+
+    {
+      "sample_values": [ ... ],
+      "entities": {
+         "spacy": [ ... ],
+         "chatgpt": [ ... ],
+         "matches": {
+            "spacy": [ ... ],
+            "chatgpt": [ ... ]
+         }
+      }
+    }
+
+    If the structure is not exactly as expected, this function sends a query to ChatGPT
+    instructing it to transform the given JSON to match the required structure.
+
+    Returns the fixed JSON object.
+    """
+    expected_template = (
+        '{"sample_values": [ ... ], "entities": {"spacy": [ ... ], "chatgpt": [ ... ], '
+        '"matches": {"spacy": [ ... ], "chatgpt": [ ... ]}}}'
+    )
+
+    needs_fix = False
+    if not isinstance(column_data, dict):
+        needs_fix = True
+    else:
+        if "sample_values" not in column_data or "entities" not in column_data:
+            needs_fix = True
+        else:
+            entities = column_data.get("entities", {})
+            if not isinstance(entities, dict) or not all(
+                k in entities for k in ["spacy", "chatgpt", "matches"]
+            ):
+                needs_fix = True
+            else:
+                matches = entities.get("matches", {})
+                if not isinstance(matches, dict) or not all(
+                    k in matches for k in ["spacy", "chatgpt"]
+                ):
+                    needs_fix = True
+
+    if not needs_fix:
+        return column_data
+
     prompt = (
-        f"Here are candidate ontology entities: {candidate_list}.\n"
-        f"Here are known ontology terms: {constraints_list}.\n"
-        f"Using a similarity threshold of {threshold} (0 to 100), "
-        "please return a JSON array of ontology terms from the known list that are similar to the candidate entities."
+        "The following JSON object does not exactly match the required structure. "
+        "Please transform it so that it exactly matches the following structure:\n\n"
+        f"{expected_template}\n\n"
+        "Return only the fixed JSON object without any markdown formatting or extra text.\n\n"
+        "Input JSON:\n" + json.dumps(column_data)
     )
 
     try:
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
+        response = client.chat.completions.create(
+            model=chatgpt_model,
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert in ontology matching.",
-                },
+                {"role": "system", "content": "You are an expert in JSON formatting."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.2,
-            max_tokens=150,
+            temperature=0.0,
+            max_tokens=300,
         )
+        fixed = response.choices[0].message.content.strip()
+        fixed_json = json.loads(fixed)
+        return fixed_json
     except Exception as e:
-        print("Error calling OpenAI API for fuzzy matching:", e)
-        return []
-
-    try:
-        answer = response.choices[0].message.content.strip()
-    except Exception as e:
-        print("Error accessing response fields for fuzzy matching:", e)
-        return []
-
-    try:
-        matches = json.loads(answer)
-        if not isinstance(matches, list):
-            matches = []
-    except Exception as e:
-        print("Error parsing JSON from ChatGPT fuzzy matching response:", e)
-        matches = [line.strip() for line in answer.splitlines() if line.strip()]
-
-    return sorted(set(matches))
+        print("Error in verification/fixing process:", e)
+        return column_data
 
 
 def process_data(
@@ -181,53 +398,43 @@ def process_data(
     ontology_constraints_path=None,
     fuzzy_threshold=80,
     fuzzy_method="rapidfuzz",
+    chunk_size=200,
+    top_n=20,
+    chatgpt_model="gpt-4o-mini",
+    candidate_type="entity",
+    classify_candidates=False,
+    verify_structure=False,
 ):
     """
-    Process a tabular data file (CSV or JSON) to extract candidate ontology entities
-    from each textual column.
+    Process a tabular data file (CSV or JSON) to extract candidate ontology terms
+    from each textual column, optionally matching them against ontology constraints.
+    Additionally, if classify_candidates is True, each candidate term is classified as
+    either an Entity or a State.
 
-    For each column, the output format is:
+    The output for each column is structured as:
       {
         "sample_values": [ ... ],
         "entities": {
-          "spacy": [ ... ],
-          "chatgpt": [ ... ],
-          "matches": {
-             "spacy": [ ... ],
-             "chatgpt": [ ... ]
-          }
+           "spacy": [ ... ],
+           "chatgpt": [ ... ],
+           "matches": {
+              "spacy": [ ... ],
+              "chatgpt": [ ... ]
+           }
         }
       }
 
-    If an ontology_constraints_path is provided (a JSON file with an "entities" field
-    containing keys "classes" and "properties"), the function will use fuzzy matching to
-    compare each candidate entity against these ontology constraints.
+    If verify_structure is True, each column's output is verified and, if necessary,
+    fixed via a secondary ChatGPT query to ensure the structure matches exactly.
 
-    Parameters:
-      file_path: Path to the data file.
-      output_path: Optional path to save the extraction results as JSON.
-      method: Extraction method to use. Acceptable values are:
-              - "spacy": Use only spaCy extraction.
-              - "chatgpt": Use only ChatGPT extraction.
-              - "both": Use both methods.
-      ontology_constraints_path: Optional path to a JSON file that exports ontology entities.
-             The JSON should have an "entities" field with keys "classes" and "properties".
-      fuzzy_threshold: Similarity threshold (0–100) for fuzzy matching. Default is 80.
-      fuzzy_method: Method for fuzzy matching. Acceptable values:
-                    - "rapidfuzz" (default)
-                    - "chatgpt"
-
-    Returns:
-      A dictionary with the extraction results.
+    Returns a dictionary with the extraction results.
     """
     data = read_data(file_path)
-
     if not isinstance(data, pd.DataFrame):
         raise ValueError(
-            "Candidate entity extraction for tabular data is supported only for CSV or JSON files."
+            "Candidate extraction is supported only for CSV or JSON files."
         )
 
-    # Load ontology constraints if provided.
     constraints_set = None
     if ontology_constraints_path:
         with open(ontology_constraints_path, "r", encoding="utf-8") as f:
@@ -238,25 +445,28 @@ def process_data(
     extraction_results = {}
 
     for col in data.columns:
-        if data[col].dtype == object:  # Process only textual columns
+        if data[col].dtype == object:
             unique_vals = data[col].dropna().unique()
-            sample_vals = list(unique_vals[:5])  # Use up to 5 sample values
-            sample_text = " ".join(map(str, sample_vals))
-
+            sample_vals = list(unique_vals[:5])
             result = {}
             if method in ["both", "spacy"]:
-                spacy_result = extract_entities_spacy(sample_text)
+                spacy_result = extract_entities_spacy(" ".join(map(str, sample_vals)))
                 result["spacy"] = spacy_result
             else:
                 result["spacy"] = []
 
             if method in ["both", "chatgpt"]:
-                chatgpt_result = extract_entities_chatgpt(col, sample_vals)
+                chatgpt_result = extract_entities_chatgpt(
+                    col,
+                    sample_vals,
+                    candidate_type=candidate_type,
+                    chatgpt_model=chatgpt_model,
+                    classify_candidates=classify_candidates,
+                )
                 result["chatgpt"] = chatgpt_result
             else:
                 result["chatgpt"] = []
 
-            # Compute fuzzy matches if ontology constraints are provided.
             matches = {"spacy": [], "chatgpt": []}
             if constraints_set is not None:
                 constraints_list = sorted(constraints_set)
@@ -269,14 +479,32 @@ def process_data(
                     )
                 elif fuzzy_method == "chatgpt":
                     matches["spacy"] = fuzzy_matches_chatgpt(
-                        result["spacy"], constraints_list, threshold=fuzzy_threshold
+                        result["spacy"],
+                        constraints_list,
+                        threshold=fuzzy_threshold,
+                        chunk_size=chunk_size,
+                        top_n=top_n,
+                        candidate_type=candidate_type,
+                        chatgpt_model=chatgpt_model,
+                        classify_candidates=classify_candidates,
                     )
                     matches["chatgpt"] = fuzzy_matches_chatgpt(
-                        result["chatgpt"], constraints_list, threshold=fuzzy_threshold
+                        result["chatgpt"],
+                        constraints_list,
+                        threshold=fuzzy_threshold,
+                        chunk_size=chunk_size,
+                        top_n=top_n,
+                        candidate_type=candidate_type,
+                        chatgpt_model=chatgpt_model,
+                        classify_candidates=classify_candidates,
                     )
             result["matches"] = matches
-
-            extraction_results[col] = {"sample_values": sample_vals, "entities": result}
+            column_output = {"sample_values": sample_vals, "entities": result}
+            if verify_structure:
+                column_output = verify_and_fix_column_structure(
+                    column_output, chatgpt_model=chatgpt_model
+                )
+            extraction_results[col] = column_output
 
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
