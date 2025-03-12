@@ -5,9 +5,14 @@ This file contains unit tests for:
 - helpers.py: Data reading utilities
 - extract.py: Entity extraction functionality
 - ontology.py: RDF/Turtle ontology processing
+- embeddings.py: Embedding utilities
 """
 
 import json
+import numpy as np
+import faiss
+import tempfile
+import pickle
 import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock, mock_open
@@ -30,6 +35,16 @@ from src.ingestion.extract import (
     process_data,
 )
 from src.ingestion.ontology import get_label_or_localname, process_ttl
+from src.ingestion.embeddings import (
+    initialize_vector_store,
+    add_to_vector_store,
+    search_vector_store,
+    save_vector_store,
+    load_vector_store,
+    embed_texts,
+    embed_texts_openai,
+    analyze_vector_store,
+)
 
 
 # ===== Fixtures =====
@@ -572,3 +587,309 @@ class TestOntology:
         # Only entities with the custom namespace should be included
         assert set(result["entities"]["classes"]) == {"Person"}
         assert set(result["entities"]["properties"]) == {"name"}
+
+
+# ===== Tests for embeddings.py =====
+
+
+class TestEmbeddings:
+    def setup_method(self):
+        """Set up test environment before each test method."""
+        # Patch the OpenAI API key check to prevent initialization errors
+        self.openai_patcher = patch(
+            "src.ingestion.embeddings.openai_api_key", "dummy_key"
+        )
+        self.openai_patcher.start()
+
+        # Patch the OpenAI client
+        self.openai_client_patcher = patch("src.ingestion.embeddings.OpenAI")
+        self.mock_openai_client = self.openai_client_patcher.start()
+
+        # Set up mock client instance
+        self.mock_client_instance = MagicMock()
+        self.mock_openai_client.return_value = self.mock_client_instance
+
+        # Set up mock embeddings response
+        self.mock_embeddings = MagicMock()
+        self.mock_client_instance.embeddings = self.mock_embeddings
+
+        # Sample texts for testing
+        self.sample_texts = [
+            "Apple Inc. is a technology company.",
+            "Microsoft was founded by Bill Gates.",
+            "Google is known for its search engine.",
+        ]
+
+        # Sample embeddings (simplified 4D vectors for testing)
+        self.sample_embeddings = [
+            [0.1, 0.2, 0.3, 0.4],
+            [0.5, 0.6, 0.7, 0.8],
+            [0.9, 0.8, 0.7, 0.6],
+        ]
+
+    def teardown_method(self):
+        """Clean up after each test method."""
+        self.openai_patcher.stop()
+        self.openai_client_patcher.stop()
+
+    def test_initialize_vector_store(self):
+        """Test initializing a vector store."""
+        dimension = 4
+        index, metadata = initialize_vector_store(dimension)
+
+        assert isinstance(index, faiss.IndexFlatL2)
+        assert index.d == dimension
+        assert metadata == []
+
+    def test_add_to_vector_store(self):
+        """Test adding embeddings to a vector store."""
+        # Initialize a vector store
+        dimension = 4
+        index, metadata = initialize_vector_store(dimension)
+
+        # Create sample embeddings and metadata
+        embeddings = np.array(self.sample_embeddings).astype("float32")
+        meta_info = [
+            {"text": self.sample_texts[0], "type": "company"},
+            {"text": self.sample_texts[1], "type": "company"},
+            {"text": self.sample_texts[2], "type": "company"},
+        ]
+
+        # Add to vector store
+        index, metadata = add_to_vector_store(index, metadata, embeddings, meta_info)
+
+        # Check results
+        assert index.ntotal == 3
+        assert len(metadata) == 3
+        assert metadata[0]["text"] == self.sample_texts[0]
+        assert metadata[0]["type"] == "company"
+        assert metadata[0]["index"] == 0
+
+    def test_add_to_vector_store_empty(self):
+        """Test adding empty embeddings to a vector store."""
+        dimension = 4
+        index, metadata = initialize_vector_store(dimension)
+
+        # Add empty embeddings
+        index, metadata = add_to_vector_store(index, metadata, [], [])
+
+        # Check that nothing changed
+        assert index.ntotal == 0
+        assert metadata == []
+
+    def test_search_vector_store(self):
+        """Test searching a vector store."""
+        # Initialize and populate vector store
+        dimension = 4
+        index, metadata = initialize_vector_store(dimension)
+
+        embeddings = np.array(self.sample_embeddings).astype("float32")
+        meta_info = [
+            {"text": self.sample_texts[0], "type": "company"},
+            {"text": self.sample_texts[1], "type": "company"},
+            {"text": self.sample_texts[2], "type": "company"},
+        ]
+
+        index, metadata = add_to_vector_store(index, metadata, embeddings, meta_info)
+
+        # Search with a query vector similar to the first embedding
+        query_vector = np.array([0.15, 0.25, 0.35, 0.45]).astype("float32")
+        results = search_vector_store(index, metadata, query_vector, k=2)
+
+        # Check results
+        assert len(results) == 2
+        assert results[0]["text"] == self.sample_texts[0]
+        assert "distance" in results[0]
+        assert "similarity" in results[0]
+
+    def test_search_vector_store_with_filter(self):
+        """Test searching a vector store with filtering."""
+        # Initialize and populate vector store
+        dimension = 4
+        index, metadata = initialize_vector_store(dimension)
+
+        embeddings = np.array(self.sample_embeddings).astype("float32")
+        meta_info = [
+            {"text": self.sample_texts[0], "type": "company", "name": "Apple"},
+            {"text": self.sample_texts[1], "type": "company", "name": "Microsoft"},
+            {"text": self.sample_texts[2], "type": "company", "name": "Google"},
+        ]
+
+        index, metadata = add_to_vector_store(index, metadata, embeddings, meta_info)
+
+        # Search with a filter for Microsoft
+        filter_func = lambda x: x.get("name") == "Microsoft"
+        query_vector = np.array([0.5, 0.5, 0.5, 0.5]).astype("float32")
+        results = search_vector_store(
+            index, metadata, query_vector, k=3, filter_func=filter_func
+        )
+
+        # Check results
+        assert len(results) == 1
+        assert results[0]["name"] == "Microsoft"
+
+    def test_save_and_load_vector_store(self):
+        """Test saving and loading a vector store."""
+        # Create a temporary directory for testing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Initialize and populate vector store
+            dimension = 4
+            index, metadata = initialize_vector_store(dimension)
+
+            embeddings = np.array(self.sample_embeddings).astype("float32")
+            meta_info = [
+                {"text": self.sample_texts[0], "type": "company"},
+                {"text": self.sample_texts[1], "type": "company"},
+                {"text": self.sample_texts[2], "type": "company"},
+            ]
+
+            index, metadata = add_to_vector_store(
+                index, metadata, embeddings, meta_info
+            )
+
+            # Save vector store
+            with patch("os.makedirs") as mock_makedirs:
+                with patch("faiss.write_index") as mock_write_index:
+                    with patch("builtins.open", mock_open()) as mock_file:
+                        with patch("pickle.dump") as mock_pickle_dump:
+                            save_vector_store(
+                                index, metadata, "test", directory=temp_dir
+                            )
+
+            # Check that the right functions were called
+            mock_makedirs.assert_called_once_with(temp_dir, exist_ok=True)
+            mock_write_index.assert_called_once()
+            mock_file.assert_called_once()
+            mock_pickle_dump.assert_called_once()
+
+            # Load vector store
+            with patch("faiss.read_index") as mock_read_index:
+                mock_read_index.return_value = faiss.IndexFlatL2(dimension)
+
+                with patch(
+                    "builtins.open", mock_open(read_data=pickle.dumps(metadata))
+                ) as mock_file:
+                    with patch("pickle.load") as mock_pickle_load:
+                        mock_pickle_load.return_value = metadata
+                        loaded_index, loaded_metadata = load_vector_store(
+                            "test", directory=temp_dir
+                        )
+
+            # Check that the right functions were called
+            mock_read_index.assert_called_once()
+            mock_file.assert_called_once()
+            mock_pickle_load.assert_called_once()
+
+    def test_embed_texts_openai(self):
+        """Test embedding texts with OpenAI."""
+        # Set up mock response
+        mock_response = MagicMock()
+        mock_response.data = [
+            MagicMock(embedding=self.sample_embeddings[0]),
+            MagicMock(embedding=self.sample_embeddings[1]),
+            MagicMock(embedding=self.sample_embeddings[2]),
+        ]
+        self.mock_embeddings.create.return_value = mock_response
+
+        # Call the function
+        result = embed_texts_openai(self.sample_texts)
+
+        # Check results
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3, 4)  # 3 texts, 4D embeddings
+        assert np.array_equal(result[0], self.sample_embeddings[0])
+
+        # Check that the API was called correctly
+        self.mock_embeddings.create.assert_called_once_with(
+            model="text-embedding-3-small", input=self.sample_texts
+        )
+
+    def test_embed_texts(self):
+        """Test the main embed_texts function."""
+        # Set up mock response
+        mock_response = MagicMock()
+        mock_response.data = [
+            MagicMock(embedding=self.sample_embeddings[0]),
+            MagicMock(embedding=self.sample_embeddings[1]),
+            MagicMock(embedding=self.sample_embeddings[2]),
+        ]
+        self.mock_embeddings.create.return_value = mock_response
+
+        # Call the function
+        result = embed_texts(self.sample_texts, model="text-embedding-3-small")
+
+        # Check results
+        assert isinstance(result, np.ndarray)
+        assert result.shape == (3, 4)
+
+        # Check that the API was called correctly
+        self.mock_embeddings.create.assert_called_once_with(
+            model="text-embedding-3-small", input=self.sample_texts
+        )
+
+    def test_embed_texts_no_api_key(self):
+        """Test embedding when API key is missing."""
+        with patch("src.ingestion.embeddings.openai_api_key", None):
+            result = embed_texts(self.sample_texts)
+
+        # Should return empty array
+        assert isinstance(result, np.ndarray)
+        assert result.size == 0
+        self.mock_embeddings.create.assert_not_called()
+
+    def test_embed_texts_api_error(self):
+        """Test embedding when API call fails."""
+        self.mock_embeddings.create.side_effect = Exception("API Error")
+
+        result = embed_texts(self.sample_texts)
+
+        # Should return empty array
+        assert isinstance(result, np.ndarray)
+        assert result.size == 0
+
+    def test_analyze_vector_store(self):
+        """Test analyzing a vector store."""
+        # Initialize and populate vector store
+        dimension = 4
+        index, metadata = initialize_vector_store(dimension)
+
+        # Add mixed types of data
+        meta_info = [
+            {"text": "Apple Inc.", "type": "company", "entity_label": "Apple"},
+            {"text": "Microsoft Corp", "type": "company", "entity_label": "Microsoft"},
+            {"text": "Person", "type": "ontology_entity", "entity_label": "Person"},
+            {
+                "text": "Organization",
+                "type": "ontology_entity",
+                "entity_label": "Organization",
+            },
+        ]
+
+        # Mock embeddings for these items
+        embeddings = np.array(
+            [
+                [0.1, 0.2, 0.3, 0.4],
+                [0.5, 0.6, 0.7, 0.8],
+                [0.9, 0.8, 0.7, 0.6],
+                [0.4, 0.3, 0.2, 0.1],
+            ]
+        ).astype("float32")
+
+        index, metadata = add_to_vector_store(index, metadata, embeddings, meta_info)
+
+        # Set up mock for embed_texts
+        with patch("src.ingestion.embeddings.embed_texts") as mock_embed_texts:
+            mock_embed_texts.return_value = np.array(
+                [[0.9, 0.8, 0.7, 0.6]]
+            )  # Same as "Person"
+
+            # Capture print output
+            with patch("builtins.print") as mock_print:
+                type_counts = analyze_vector_store(
+                    (index, metadata), model="text-embedding-3-small"
+                )
+
+        # Check results
+        assert type_counts == {"company": 2, "ontology_entity": 2}
+        mock_print.assert_called()  # Just verify it printed something
+        mock_embed_texts.assert_called_once()
