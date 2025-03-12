@@ -3,3 +3,5 @@ results/
 __pycache__/
 .spyproject/
 .DS_Store
+.env
+.pytest_cache/
