@@ -1,46 +1,80 @@
 #!/usr/bin/env python3
 """
-Entity Extraction Script
+Entity Extraction Script using Only ChatGPT (Three-Step Process with Absolute Paths)
 
-This script demonstrates the extraction of candidate entities from tabular data
-using different extraction methods. It serves as a command-line utility for
-processing data files and identifying potential entities for ontology development.
+This script demonstrates a three-step workflow:
+1. Reference Ontology Extraction:
+   - Extracts a reference ontology from a Turtle (.ttl) file and saves it as JSON.
+2. Candidate Entity Extraction:
+   - Extracts candidate entities from a CSV file using only ChatGPT.
+   - Fuzzy matching is performed against the reference ontology using ChatGPT-based semantic matching.
+3. Candidate Entity Classification:
+   - Extracts candidate entities from the CSV file using ChatGPT with classification activated.
+   - The prompt instructs ChatGPT to return a JSON array of objects with "term" and "classification".
+   - The classified results are saved as JSON.
 
-The script uses the process_data() function from the extract_entities module to:
-1. Process a CSV file containing address data
-2. Extract entities using different methods (spaCy NER, ChatGPT, or both)
-3. Optionally match extracted entities against ontology constraints
-4. Save the results to a JSON file
-5. Print a summary of the extraction results
-
-The script demonstrates two different extraction approaches:
-1. Basic extraction using only spaCy NER
-2. Advanced extraction using both spaCy and ChatGPT with fuzzy matching against
-   existing ontology constraints
-
-Usage (from the root directory):
+Usage (from any directory):
     ./scripts/extract_entities.py
-
-The input and output paths are currently hardcoded in the script.
-To modify these paths or extraction parameters, edit the script directly.
 """
 
+import os
+from src.ingestion.ontology import process_ttl
 from src.ingestion.extract import process_data
 
-results = process_data(
-    "data/raw/address_base_plus_john_2023-10-06_122302.csv",
-    output_path="results/candidate_entities.json",
-    method="spacy",
-)
-print(results)
+# Construct absolute paths based on the script location
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.abspath(os.path.join(script_dir, ".."))
 
-
-results = process_data(
-    "data/raw/address_base_plus_john_2023-10-06_122302.csv",
-    output_path="results/candidate_entities.json",
-    method="both",
-    ontology_constraints_path="data/ontologies/ontology_entities.json",
-    fuzzy_threshold=80,
-    fuzzy_method="chatgpt",  # or "rapidfuzz"
+# Absolute path for the TTL file (reference ontology)
+ttl_path = os.path.join(project_root, "data", "ontologies", "ies-common.ttl")
+# Absolute path where the extracted ontology JSON will be saved
+ontology_json_path = os.path.join(
+    project_root, "data", "ontologies", "ontology_entities.json"
 )
-print(results)
+# Absolute path for the CSV file with candidate data
+csv_path = os.path.join(
+    project_root, "data", "raw", "address_base_plus_john_2023-10-06_122302.csv"
+)
+# Absolute path for the output candidate entities JSON file (step 2)
+output_path_step2 = os.path.join(
+    project_root, "results", "candidate_entities_with_reference.json"
+)
+# Absolute path for the output candidate entities classification JSON file (step 3)
+output_path_step3 = os.path.join(
+    project_root, "results", "candidate_entities_classified.json"
+)
+
+# Step 1: Extract the reference ontology from the TTL file.
+ontology_result = process_ttl(
+    ttl_path, output_path=ontology_json_path, namespace_prefix=""
+)
+print("Step 1 - Reference Ontology Extraction Result:")
+print(ontology_result)
+
+# Step 2: Extract candidate entities from the CSV file using only ChatGPT.
+# results_step2 = process_data(
+#     file_path=csv_path,
+#     output_path=output_path_step2,
+#     method="chatgpt",                      # Use only ChatGPT for extraction.
+#     ontology_constraints_path=ontology_json_path,
+#     fuzzy_threshold=80,                    # Similarity threshold for fuzzy matching.
+#     fuzzy_method="chatgpt",                # Use ChatGPT-based fuzzy matching.
+#     candidate_type="entity",               # Candidate type wording.
+#     classify_candidates=False              # No classification in this step.
+# )
+# print("Step 2 - Candidate Entity Extraction Result:")
+# print(results_step2)
+
+# Step 3: Extract candidate entities with classification from the CSV file using ChatGPT.
+results_step3 = process_data(
+    file_path=csv_path,
+    output_path=output_path_step3,
+    method="chatgpt",  # Use only ChatGPT for extraction.
+    ontology_constraints_path=ontology_json_path,
+    fuzzy_threshold=80,  # Similarity threshold for fuzzy matching.
+    fuzzy_method="chatgpt",  # Use ChatGPT-based fuzzy matching.
+    candidate_type="entity",  # Candidate type wording.
+    classify_candidates=True,  # Activate classification in the output.
+)
+print("Step 3 - Candidate Entity Classification Result:")
+print(results_step3)
