@@ -6,13 +6,20 @@ An AI-assisted ontology development workflow that ingests data from various sour
 
 - [Purpose and Overview](#purpose-and-overview)
 - [Installation and Setup](#installation-and-setup)
-- [Usage Instructions](#usage-instructions)
+- [Ontology Extraction and Matching](#ontology-extraction-and-matching)
   - [Ingestion and Entity Extraction](#ingestion-and-entity-extraction)
   - [Fuzzy Matching Options](#fuzzy-matching-options)
   - [Ontology Constraints File](#ontology-constraints-file)
   - [Example Usage](#example-usage)
   - [Output Folder](#output-folder)
   - [Next Steps](#next-steps)
+- [Ontology Generation](#ontology-generation)
+  - [LLM-Based Generation](#llm-based-generation)
+  - [Iterative Refinement](#iterative-refinement)
+  - [Generate Ontology Usage](#generate-ontology-usage)
+- [Analysis and Visualization](#analysis-and-visualization)
+  - [Embedding Analysis](#embedding-analysis)
+  - [Namespace Analysis](#namespace-analysis)
 - [Folder Structure](#folder-structure)
 - [Security](#security)
 - [License](#license)
@@ -64,7 +71,7 @@ entities can then be matched against an ontology export using fuzzy matching tec
    ```
    (On Windows, use `set OPENAI_API_KEY=your_api_key`)
 
-## Usage Instructions
+## Ontology Extraction and Matching
 
 ### Ingestion and Entity Extraction
 
@@ -151,6 +158,87 @@ Once candidate entities are extracted and matched against your ontology constrai
 - Build mapping configurations to convert raw data into RDF (using transformation scripts).
 - Validate the transformed data using validation scripts (e.g., SHACL constraints or SPARQL queries).
 
+## Ontology Generation
+
+The project includes a generation module that uses Large Language Models (LLMs) to generate and refine ontology snippets in Turtle format.
+
+### LLM-Based Generation
+
+The `src/generation` module provides functionality to:
+
+- Generate ontology snippets from instructions, common templates, and sample data
+- Compare generated snippets with reference snippets
+- Refine generation instructions based on comparison results
+
+Key components include:
+
+- **llm_interface.py**: Functions for interacting with LLMs, including:
+  - `generate_ttl_snippet()`: Generates Turtle snippets based on prompts
+  - `compare_snippets()`: Compares generated snippets with reference snippets
+  - `refine_instructions()`: Refines instructions based on error feedback
+
+### Iterative Refinement
+
+The generation module implements an iterative workflow that:
+
+1. Generates an ontology snippet based on instructions
+2. Compares it with a reference snippet
+3. Identifies missing or extra entities and states
+4. Refines the instructions to address the issues
+5. Repeats the process until convergence
+
+The `iteration.py` module provides checkpoint management for resuming iterations:
+
+- `load_checkpoint()`: Loads the most recent iteration state
+- `save_checkpoint()`: Saves the current iteration state
+- `get_iteration_history()`: Retrieves the complete history of iterations
+
+### Generate Ontology Usage
+
+The project includes a script for generating ontology snippets using LLMs with an iterative refinement approach:
+
+```bash
+python -m scripts.generate_ontology \
+    --common-snippet data/generation/common_template.ttl \
+    --csv-file data/generation/data_building_123003.csv \
+    --reference-snippet data/generation/building_ontology.ttl \
+    --instructions data/generation/initial_prompt.txt
+```
+
+Key parameters:
+
+- `--common-snippet`: Common ontology template
+- `--csv-file`: Sample data file
+- `--reference-snippet`: Reference ontology snippet
+- `--instructions`: Initial instructions file
+- `--model`: OpenAI model (default: o3-mini)
+- `--output`: Output path (default: results/final_ontology.ttl)
+
+The script iteratively generates and refines ontology snippets by comparing with a reference, stopping when no differences are found or after reaching maximum iterations.
+
+## Analysis and Visualization
+
+### Embedding Analysis
+
+The project includes tools for analysing ontology data using embeddings:
+
+- `scripts/analyse_ontology.py`: Analyses similarities between entities across different namespaces
+- Visualises relationships using t-SNE projections for:
+  - Namespace similarities
+  - Column mappings
+  - Value mappings
+
+### Namespace Analysis
+
+The analysis module can:
+
+- Extract entities from TTL files and create string representations
+- Group entities by namespace
+- Find similar entities within and across namespaces
+- Generate interactive visualizations to explore relationships
+
+For more details, see the [embedding analysis documentation](docs/embedding_analysis/embedding_analysis.md).
+
 ## Folder Structure
 
 The project is organized as follows:
@@ -167,8 +255,16 @@ ndtp-ai-ontology-extension/
 │   │   ├── helpers.py        # Functions to read data (CSV, JSON, RDF)
 │   │   ├── extract.py        # Extracts candidate ontology entities from tabular data
 │   │   └── ontology.py       # Ingests RDF/Turtle ontology files
-│   ├── transformation/       # Data transformation modules
+│   ├── generation/           # Ontology generation modules
 │   │   ├── __init__.py
+│   │   ├── llm_interface.py  # Functions for interacting with LLMs
+│   │   └── iteration.py      # Functions for managing iterative workflow
+│   ├── analysis/             # Analysis and visualization modules
+│   │   ├── __init__.py
+│   │   ├── representations.py # Entity representation functions
+│   │   ├── namespaces.py     # Namespace analysis functions
+│   │   ├── columns.py        # Column mapping functions
+│   │   └── values.py         # Value mapping functions
 │   ├── validation/           # Validation modules
 │   │   └── __init__.py
 ├── data/                     # Data directory (no __init__.py needed)
@@ -183,9 +279,11 @@ ndtp-ai-ontology-extension/
 ├── results/                  # Output files
 ├── logs/                     # Log files
 ├── docs/                     # Documentation
+│   └── embedding_analysis/   # Documentation for embedding analysis
 ├── scripts/                  # Executable scripts
 │   ├── extract_entities_ttl.py
-│   └── extract_entities.py
+│   ├── extract_entities.py
+│   └── analyse_ontology.py
 ├── .gitignore
 ├── requirements.txt
 ├── LICENSE.md
