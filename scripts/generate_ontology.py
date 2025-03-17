@@ -186,7 +186,7 @@ def main():
         # Build prompt and generate snippet
         print("Building prompt and generating TTL snippet...")
         prompt = build_prompt_for_generation(
-            main_instructions=current_instructions,
+            instructions=current_instructions,
             common_snippet=common_snippet,
             csv_data=csv_data_str,
             iteration_feedback=iteration_feedback,
