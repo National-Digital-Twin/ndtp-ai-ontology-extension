@@ -6,7 +6,6 @@ It implements an iterative workflow that compares generated snippets with refere
 snippets and refines the generation instructions based on the comparison results.
 
 Key components:
-- llm_interface: Functions for interacting with LLMs
-- comparison: Functions for comparing ontology snippets
+- llm_interface: Functions for interacting with LLM to generate, refine, and compare ontology snippets
 - iteration: Functions for managing the iterative workflow
 """
