@@ -58,8 +58,11 @@ import spacy
 from rapidfuzz import fuzz
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-if client.api_key is None:
+# Initialize OpenAI client with a dummy key if environment variable is not set
+# This allows the module to be imported without raising an error
+api_key = os.getenv("OPENAI_API_KEY", "dummy_key_for_testing")
+client = OpenAI(api_key=api_key)
+if api_key == "dummy_key_for_testing":
     print("Warning: OPENAI_API_KEY is not set. ChatGPT queries will be skipped.")
 
 from .helpers import read_data

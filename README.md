@@ -17,6 +17,9 @@ An AI-assisted ontology development workflow that ingests data from various sour
   - [LLM-Based Generation](#llm-based-generation)
   - [Iterative Refinement](#iterative-refinement)
   - [Generate Ontology Usage](#generate-ontology-usage)
+- [Streamlit Application for Generation](#streamlit-application-for-generation)
+  - [Features](#features)
+  - [Running the App](#running-the-app)
 - [Analysis and Visualization](#analysis-and-visualization)
   - [Embedding Analysis](#embedding-analysis)
   - [Namespace Analysis](#namespace-analysis)
@@ -215,6 +218,41 @@ Key parameters:
 - `--output`: Output path (default: results/final_ontology.ttl)
 
 The script iteratively generates and refines ontology snippets by comparing with a reference, stopping when no differences are found or after reaching maximum iterations.
+
+## Streamlit Application for Generation
+
+The project includes a Streamlit web application that provides a user-friendly interface for ontology generation.
+
+### Features
+
+- **Setup Page**: Upload base (common) ontology, CSV data, and (optionally) areference ontology
+- **Generation Page**: Iteratively generate and refine ontology with AI assistance
+- **Results Page**: View, edit, and export the final ontology with visualisation of the generation process
+
+### Running the App
+
+1. **Install Streamlit**  
+   If you haven't installed Streamlit, run:
+   ```bash
+   pip install streamlit
+   ```
+
+2. **Set up OpenAI API Key**  
+   The app requires an OpenAI API key, which can be provided in two ways:
+   - As an environment variable: `export OPENAI_API_KEY="your_api_key"`
+   - In a Streamlit secrets file: Create `.streamlit/secrets.toml` with `OPENAI_API_KEY = "your_api_key"`
+
+3. **Launch the App**  
+   ```bash
+   streamlit run app/main.py
+   ```
+
+4. **Using the App**  
+   - Start on the Setup page to configure inputs
+   - Proceed to the Generation page to create and refine ontologies
+   - View and export results on the Results page
+
+The Streamlit app is currently a work in progress.
 
 ## Analysis and Visualization
 

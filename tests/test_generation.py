@@ -52,17 +52,17 @@ def test_build_prompt_for_generation():
     assert "Additional feedback" in prompt_with_feedback
 
 
-@patch("src.generation.llm_interface.client")
-def test_generate_ttl_snippet(mock_client):
+def test_generate_ttl_snippet():
     """Test TTL snippet generation with mocked OpenAI client."""
     # Setup mock
+    mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Generated TTL content"
     mock_client.chat.completions.create.return_value = mock_response
 
     # Call function
-    result = generate_ttl_snippet("Test prompt")
+    result = generate_ttl_snippet(mock_client, "Test prompt")
 
     # Verify
     assert result == "Generated TTL content"
@@ -71,23 +71,25 @@ def test_generate_ttl_snippet(mock_client):
     # No need to test API key missing error since that's now handled at module level
 
 
-@patch("src.generation.llm_interface.client")
-def test_refine_instructions(mock_client):
+def test_refine_instructions():
     """Test instruction refinement with mocked OpenAI client."""
     # Setup mock
+    mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Refined instructions"
     mock_client.chat.completions.create.return_value = mock_response
 
     # Test with error summary
-    result = refine_instructions("Missing entities", "Original instructions")
+    result = refine_instructions(
+        mock_client, "Missing entities", "Original instructions"
+    )
     assert result == "Refined instructions"
     mock_client.chat.completions.create.assert_called_once()
 
     # Test with "No errors" - should return original instructions
     mock_client.chat.completions.create.reset_mock()
-    result = refine_instructions("No errors.", "Original instructions")
+    result = refine_instructions(mock_client, "No errors.", "Original instructions")
     assert result == "Original instructions"
     mock_client.chat.completions.create.assert_not_called()
 
@@ -95,10 +97,10 @@ def test_refine_instructions(mock_client):
 # ===== Comparison Tests =====
 
 
-@patch("src.generation.llm_interface.client")
-def test_compare_snippets(mock_client):
+def test_compare_snippets():
     """Test snippet comparison with mocked OpenAI client."""
     # Setup mock
+    mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = json.dumps(
@@ -112,7 +114,7 @@ def test_compare_snippets(mock_client):
     mock_client.chat.completions.create.return_value = mock_response
 
     # Call function
-    result = compare_snippets("Generated TTL", "Reference TTL")
+    result = compare_snippets(mock_client, "Generated TTL", "Reference TTL")
 
     # Verify
     assert "entities_missing_in_A" in result
@@ -123,7 +125,7 @@ def test_compare_snippets(mock_client):
 
     # Test invalid JSON response
     mock_response.choices[0].message.content = "Not valid JSON"
-    result = compare_snippets("Generated TTL", "Reference TTL")
+    result = compare_snippets(mock_client, "Generated TTL", "Reference TTL")
     assert "error" in result
     assert "raw_output" in result
 
