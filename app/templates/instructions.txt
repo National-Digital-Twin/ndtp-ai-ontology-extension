@@ -1,4 +1,4 @@
-Instruction: Please create a Turtle/OWL file (.ttl) that extends the IES Common Ontology with new classes, states, and properties in a specific domain (“XYZ Domain”). The final snippet must follow these rules and structural steps strictly:
+Instruction: Please create a Turtle/OWL file (.ttl) that extends the IES Common Ontology with new classes, states, and properties in a specific domain (“XYZ Domain”) - Do not use XYZ tho, it is an example. The final snippet must follow these rules and structural steps strictly:
 
 Namespaces & Setup
 

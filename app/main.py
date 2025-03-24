@@ -1,108 +1,69 @@
-import streamlit as st
 import os
 import sys
-import pandas as pd
+import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.views import setup, generation, results
 from app.utils.logging import log
+from app.state.app_state import AppState
+from app.views import data_input, processing, generation, evaluation
 
 
-def initialise_state():
-    """Initialise session state variables with default values."""
-    if "page" not in st.session_state:
-        st.session_state.page = "setup"
-        log("Initialized session state: page = setup")
+def show():
+    """Display the wizard interface for ontology generation."""
+    st.title("Ontology Generator")
 
-    if "common_snippet" not in st.session_state:
-        st.session_state.common_snippet = None
-        log("Initialized session state: common_snippet = None")
+    # Create sidebar navigation
+    with st.sidebar:
+        st.markdown(
+            """
+        ## Ontology Generator
+                    
+        The Ontology Generator helps you create, process, 
+        and validate ontologies in a step-by-step workflow.
+        """
+        )
 
-    if "csv_data" not in st.session_state:
-        st.session_state.csv_data = None
-        log("Initialized session state: csv_data = None")
+        st.markdown(
+            """
+        <div style='background-color: #f0f2f6; padding: 10px; border-radius: 5px;'>
+            <p style='margin: 5px 0;'><strong>Steps</strong></p>
+            <p style='margin: 5px 0;'><a href='#data-input'>1. Data Input</a></p>
+            <p style='margin: 5px 0;'><a href='#data-processing'>2. Data Processing</a></p>
+            <p style='margin: 5px 0;'><a href='#ontology-generation'>3. Ontology Generation</a></p>
+            <p style='margin: 5px 0;'><a href='#validation'>4. Validation</a></p>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
 
-    if "reference_snippet" not in st.session_state:
-        st.session_state.reference_snippet = None
-        log("Initialized session state: reference_snippet = None")
+    # Initialize state if needed
+    state = AppState.get()
 
-    if "instructions" not in st.session_state:
-        st.session_state.instructions = None
-        log("Initialized session state: instructions = None")
+    # Data Input Section
+    st.header("1. Data Input", anchor="data-input")
+    with st.container():
+        data_input.show()
 
-    if "model" not in st.session_state:
-        st.session_state.model = "gpt-4o-mini"
-        log("Initialized session state: model = gpt-4o-mini")
+    st.divider()
 
-    if "output_filename" not in st.session_state:
-        st.session_state.output_filename = "ontology.ttl"
-        log("Initialized session state: output_filename = ontology.ttl")
+    # Processing Section
+    st.header("2. Data Processing", anchor="data-processing")
+    with st.container():
+        processing.show()
 
-    if "current_iteration" not in st.session_state:
-        st.session_state.current_iteration = 0
-        log("Initialized session state: current_iteration = 0")
+    st.divider()
 
-    if "generated_snippet" not in st.session_state:
-        st.session_state.generated_snippet = None
-        log("Initialized session state: generated_snippet = None")
+    # Generation Section
+    st.header("3. Ontology Generation", anchor="ontology-generation")
+    with st.container():
+        generation.show()
 
-    if "iteration_history" not in st.session_state:
-        st.session_state.iteration_history = []
-        log("Initialized session state: iteration_history = []")
+    st.divider()
 
-    if "human_feedback" not in st.session_state:
-        st.session_state.human_feedback = ""
-        log('Initialized session state: human_feedback = ""')
-
-
-def is_csv_data_valid():
-    """Check if CSV data is loaded and not empty."""
-    is_valid = st.session_state.csv_data is not None and not (
-        isinstance(st.session_state.csv_data, pd.DataFrame)
-        and st.session_state.csv_data.empty
-    )
-    log(f"CSV data validation check: {is_valid}")
-    return is_valid
-
-
-def navigate_to(page):
-    """Change the current page in the application."""
-    log(f"Navigating to page: {page}")
-    st.session_state.page = page
-
-
-def sidebar():
-    """Render the application sidebar with navigation buttons."""
-    st.sidebar.title("Ontology Generator")
-    st.sidebar.markdown("---")
-
-    if st.sidebar.button("Setup", key="nav_setup"):
-        log("User clicked Setup navigation button")
-        navigate_to("setup")
-
-    generation_disabled = not (
-        st.session_state.common_snippet is not None
-        and is_csv_data_valid()
-        and st.session_state.instructions is not None
-    )
-
-    if st.sidebar.button(
-        "Generation", key="nav_generation", disabled=generation_disabled
-    ):
-        log("User clicked Generation navigation button")
-        navigate_to("generation")
-
-    if st.sidebar.button(
-        "Results", key="nav_results", disabled=not st.session_state.generated_snippet
-    ):
-        log("User clicked Results navigation button")
-        navigate_to("results")
-
-    st.sidebar.markdown("---")
-    st.sidebar.info(
-        "This application helps you generate ontologies using AI. "
-        "Start by configuring your inputs in the Setup page."
-    )
+    # Evaluation Section
+    st.header("4. Validation", anchor="validation")
+    with st.container():
+        evaluation.show()
 
 
 def main():
@@ -117,17 +78,10 @@ def main():
     )
     log("Streamlit page configuration set")
 
-    initialise_state()
-    sidebar()
+    AppState.initialize()
 
-    log(f"Displaying page: {st.session_state.page}")
-    if st.session_state.page == "setup":
-        setup.show()
-    elif st.session_state.page == "generation":
-        generation.show()
-    elif st.session_state.page == "results":
-        results.show()
-
+    log(f"Showing page...")
+    show()
     log("Page rendering complete")
 
 
