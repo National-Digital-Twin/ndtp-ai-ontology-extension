@@ -2,31 +2,10 @@ import streamlit as st
 from typing import Tuple, List, Optional
 
 from app.utils.logging import log
-from app.state.app_state import AppState
 from src.eval.ABM import simulate_multi_agent_discussion
 from src.eval.comparison import compare
 from src.eval.owl_check import convert_and_check_ttl_ontology
-
-# TODO: Temp cache for evaluation results (avoid o3 api call)
-import pickle
-import os
-
-CACHE_FILE = "data/evaluation_cache.pkl"
-
-
-def get_from_cache(key):
-    if os.path.exists(CACHE_FILE):
-        cache = pickle.load(open(CACHE_FILE, "rb"))
-        return cache.get(key, None)
-    return None
-
-
-def save_to_cache(key, value):
-    cache = {}
-    if os.path.exists(CACHE_FILE):
-        cache = pickle.load(open(CACHE_FILE, "rb"))
-    cache[key] = value
-    pickle.dump(cache, open(CACHE_FILE, "wb"))
+from app.components.cache import get_from_cache, save_to_cache
 
 
 class EvaluationHandler:
@@ -36,7 +15,6 @@ class EvaluationHandler:
     ) -> Tuple[Optional[str], List[str]]:
         """Validate the generated ontology."""
         try:
-            # TODO: Temp cache for evaluation results (avoid o3 api call)
             validation_result = get_from_cache("validation_result")
             if validation_result is None:
                 log("No cache found, running validation...")
@@ -65,21 +43,19 @@ class EvaluationHandler:
     ) -> Optional[str]:
         """Run ABM simulation with the validated ontology."""
         try:
-            with st.spinner("Starting multi-agent discussion simulation..."):
-                # TODO: Temp cache for evaluation results (avoid o3 api call)
-                discussion_result = get_from_cache("discussion_result")
-                if discussion_result is None:
-                    log("No cache found, running discussion...")
-                    discussion_result = simulate_multi_agent_discussion(
-                        model=model,
-                        ontology_text=clean_ontology,
-                        ontology_description=scene,
-                        config_file=personas,
-                        chunk_size=2000,
-                        overlap=200,
-                        top_n_relevant=2,
-                    )
-                    save_to_cache("discussion_result", discussion_result)
+            discussion_result = get_from_cache("discussion_result")
+            if discussion_result is None:
+                log("No cache found, running discussion...")
+                discussion_result = simulate_multi_agent_discussion(
+                    model=model,
+                    ontology_text=clean_ontology,
+                    ontology_description=scene,
+                    config_file=personas,
+                    chunk_size=2000,
+                    overlap=200,
+                    top_n_relevant=2,
+                )
+                save_to_cache("discussion_result", discussion_result)
 
             log("ABM simulation completed successfully")
             return discussion_result
@@ -94,7 +70,6 @@ class EvaluationHandler:
     ) -> Optional[str]:
         """Compare generated ontology with reference."""
         try:
-            # TODO: Temp cache for evaluation results (avoid o3 api call)
             comparison_result = get_from_cache("comparison_result")
             if comparison_result is None:
                 log("No cache found, running comparison...")

@@ -57,13 +57,14 @@ def show():
 
     # Generation Actions
     if st.button("Generate Ontology", use_container_width=True, type="primary"):
-        result = ProcessingHandler.generate_ontology(
-            df=state.csv_data,
-            model=state.model,
-            background=background,
-            prompt=prompt,
-            guidelines=guidelines,
-        )
+        with st.spinner("Generating ontology..."):
+            result = ProcessingHandler.generate_ontology(
+                df=state.csv_data,
+                model=state.model,
+                background=background,
+                prompt=prompt,
+                guidelines=guidelines,
+            )
         state.new_output = result
 
     if state.new_output:

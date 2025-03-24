@@ -14,75 +14,50 @@ from src.ingestion.extract import (
     classify_extensions,
 )
 from src.generation.generator import ontology_generator
-
-# TODO: Temp cache for processing results (avoid o3 api call)
-import pickle
-import os
-
-CACHE_FILE = "data/processing_cache.pkl"
-
-
-def get_from_cache(key):
-    if os.path.exists(CACHE_FILE):
-        cache = pickle.load(open(CACHE_FILE, "rb"))
-        return cache.get(key, None)
-    return None
-
-
-def save_to_cache(key, value):
-    cache = {}
-    if os.path.exists(CACHE_FILE):
-        cache = pickle.load(open(CACHE_FILE, "rb"))
-    cache[key] = value
-    pickle.dump(cache, open(CACHE_FILE, "wb"))
+from app.components.cache import get_from_cache, save_to_cache
 
 
 class ProcessingHandler:
     @staticmethod
     def analyze_csv(df: pd.DataFrame, model: str) -> Dict:
         """Run CSV analysis step."""
-        with st.spinner("Analyzing CSV..."):
-            try:
-                # TODO: Temp cache for processing results (avoid o3 api call)
-                analysis_result = get_from_cache("analysis_result")
-                if analysis_result is None:
-                    log("No cache found, analyzing CSV...")
-                    analysis_result = analyze_step(df, model)
-                    save_to_cache("analysis_result", analysis_result)
+        try:
+            analysis_result = get_from_cache("analysis_result")
+            if analysis_result is None:
+                log("No cache found, analyzing CSV...")
+                analysis_result = analyze_step(df, model)
+                save_to_cache("analysis_result", analysis_result)
 
-                AppState.get().processing_results["analysis"] = analysis_result
-                log("CSV analysis completed successfully")
-                return analysis_result
-            except Exception as e:
-                log(f"Error in CSV analysis: {e}", "ERROR")
-                st.error(f"Analysis failed: {e}")
-                return {}
+            AppState.get().processing_results["analysis"] = analysis_result
+            log("CSV analysis completed successfully")
+            return analysis_result
+        except Exception as e:
+            log(f"Error in CSV analysis: {e}", "ERROR")
+            st.error(f"Analysis failed: {e}")
+            return {}
 
     @staticmethod
     def extract_triplets(df: pd.DataFrame, model: str) -> Dict:
         """Extract triplets from CSV data."""
-        with st.spinner("Extracting triplets..."):
-            try:
-                # TODO: Temp cache for processing results (avoid o3 api call)
-                tri_result = get_from_cache("tri_result")
-                if tri_result is None:
-                    log("No cache found, extracting triplets...")
-                    tri_result = analyze_tri(df, model)
-                    save_to_cache("tri_result", tri_result)
+        try:
+            tri_result = get_from_cache("tri_result")
+            if tri_result is None:
+                log("No cache found, extracting triplets...")
+                tri_result = analyze_tri(df, model)
+                save_to_cache("tri_result", tri_result)
 
-                AppState.get().processing_results["triplets"] = tri_result
-                log("Triplet extraction completed successfully")
-                return tri_result
-            except Exception as e:
-                log(f"Error in triplet extraction: {e}", "ERROR")
-                st.error(f"Triplet extraction failed: {e}")
-                return {}
+            AppState.get().processing_results["triplets"] = tri_result
+            log("Triplet extraction completed successfully")
+            return tri_result
+        except Exception as e:
+            log(f"Error in triplet extraction: {e}", "ERROR")
+            st.error(f"Triplet extraction failed: {e}")
+            return {}
 
     @staticmethod
     def extract_concepts(df: pd.DataFrame, model: str) -> Dict:
         """Extract concepts from CSV data."""
         try:
-            # TODO: Temp cache for processing results (avoid o3 api call)
             concepts_result = get_from_cache("concepts_result")
             if concepts_result is None:
                 log("No cache found, extracting concepts...")
@@ -112,7 +87,6 @@ class ProcessingHandler:
             raw_str = state.processing_results["concepts"]
             concepts = re.findall(r'"([^"]+)"', raw_str)
 
-            # TODO: Temp cache for processing results (avoid o3 api call)
             usage_result = get_from_cache("usage_result")
             if usage_result is None:
                 log("No cache found, gathering usage patterns...")
@@ -137,27 +111,25 @@ class ProcessingHandler:
             st.warning("Run 'Gather Usage Patterns' first.")
             return None
 
-        with st.spinner("Classifying extensions..."):
-            try:
-                # TODO: Temp cache for processing results (avoid o3 api call)
-                classification_result = get_from_cache("classification_result")
-                if classification_result is None:
-                    log("No cache found, classifying extensions...")
-                    classification_result = classify_extensions(
-                        usage_info=state.processing_results["usage"], model=model
-                    )
-                    save_to_cache("classification_result", classification_result)
-                classification_result = [
-                    json.loads(item) for item in classification_result
-                ]
+        try:
+            classification_result = get_from_cache("classification_result")
+            if classification_result is None:
+                log("No cache found, classifying extensions...")
+                classification_result = classify_extensions(
+                    usage_info=state.processing_results["usage"], model=model
+                )
+                save_to_cache("classification_result", classification_result)
+            classification_result = [
+                json.loads(item) for item in classification_result
+            ]
 
-                state.processing_results["classification"] = classification_result
-                log("Extensions classified successfully")
-                return classification_result
-            except Exception as e:
-                log(f"Error classifying extensions: {e}", "ERROR")
-                st.error(f"Extension classification failed: {e}")
-                return None
+            state.processing_results["classification"] = classification_result
+            log("Extensions classified successfully")
+            return classification_result
+        except Exception as e:
+            log(f"Error classifying extensions: {e}", "ERROR")
+            st.error(f"Extension classification failed: {e}")
+            return None
 
     @staticmethod
     def generate_ontology(
@@ -166,7 +138,6 @@ class ProcessingHandler:
         """Generate ontology based on processed data."""
         state = AppState.get()
         try:
-            # TODO: Temp cache for processing results (avoid o3 api call)
             result = get_from_cache("ontology_result")
             if result is None:
                 log("No cache found, generating ontology...")

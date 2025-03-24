@@ -54,7 +54,7 @@ def show():
         if st.button(
             "Start Multi Agent Discussion", use_container_width=True, type="primary"
         ):
-            with st.spinner("Running ABM Simulation..."):
+            with st.spinner("Running multi-agent discussion simulation..."):
                 state.discussion_result = EvaluationHandler.run_abm_simulation(
                     model=state.model,
                     clean_ontology=state.clean_ontology,
