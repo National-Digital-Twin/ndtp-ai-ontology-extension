@@ -54,7 +54,7 @@ def show():
     st.divider()
 
     # Generation Section
-    st.header("3. Ontology Generation", anchor="ontology-generation")
+    st.header("3. Extension Generation", anchor="ontology-generation")
     with st.container():
         generation.show()
 

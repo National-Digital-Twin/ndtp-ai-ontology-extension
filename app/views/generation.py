@@ -61,8 +61,8 @@ def show():
         )
 
     # Generation Actions
-    if st.button("Generate Ontology", use_container_width=True, type="primary"):
-        with st.spinner("Generating ontology..."):
+    if st.button("Generate Extension", use_container_width=True, type="primary"):
+        with st.spinner("Generating ontology extension..."):
             result = ProcessingHandler.generate_ontology(
                 df=state.csv_data,
                 model=state.model,
@@ -89,7 +89,7 @@ def show():
             if len(state.iteration_history) > 1
             else ""
         )
-        with st.expander(f"Generated Ontology{suffix}", expanded=True):
+        with st.expander(f"Generated Ontology Extension{suffix}", expanded=True):
             st.code(state.new_output, language="turtle")
         state.status["ontology_generation"] = True
 
