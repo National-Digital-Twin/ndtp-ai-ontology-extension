@@ -1,10 +1,12 @@
 import streamlit as st
 from typing import Tuple, List, Optional
 
-from app.utils.logging import log
 from src.eval.ABM import simulate_multi_agent_discussion
 from src.eval.comparison import compare
 from src.eval.owl_check import convert_and_check_ttl_ontology
+
+from app.utils.logging import log
+from app.state import AppState
 from app.components.cache import get_from_cache, save_to_cache
 
 
@@ -18,8 +20,12 @@ class EvaluationHandler:
             validation_result = get_from_cache("validation_result")
             if validation_result is None:
                 log("No cache found, running validation...")
+                client = AppState.get().client
                 clean_ontology, error_log = convert_and_check_ttl_ontology(
-                    model=model, input_ttl_path=ontology_code, max_chatgpt_fixes=5
+                    client=client,
+                    model=model,
+                    input_ttl_path=ontology_code,
+                    max_chatgpt_fixes=5,
                 )
                 validation_result = {
                     "clean_ontology": clean_ontology,
@@ -43,10 +49,12 @@ class EvaluationHandler:
     ) -> Optional[str]:
         """Run ABM simulation with the validated ontology."""
         try:
+            client = AppState.get().client
             discussion_result = get_from_cache("discussion_result")
             if discussion_result is None:
                 log("No cache found, running discussion...")
                 discussion_result = simulate_multi_agent_discussion(
+                    client=client,
                     model=model,
                     ontology_text=clean_ontology,
                     ontology_description=scene,
@@ -70,10 +78,12 @@ class EvaluationHandler:
     ) -> Optional[str]:
         """Compare generated ontology with reference."""
         try:
+            client = AppState.get().client
             comparison_result = get_from_cache("comparison_result")
             if comparison_result is None:
                 log("No cache found, running comparison...")
                 comparison_result = compare(
+                    client=client,
                     model=model,
                     syntetic_extension=synthetic_extension,
                     reference=reference,

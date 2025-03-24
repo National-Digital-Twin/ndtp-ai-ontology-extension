@@ -1,6 +1,6 @@
-import openai
+from openai import OpenAI
 import pandas as pd
-import streamlit as st
+from typing import Optional
 
 
 def generate_ontology_prompt(
@@ -82,6 +82,7 @@ def generate_ontology_prompt(
 
 
 def ontology_generator(
+    client: OpenAI,
     df: pd.DataFrame,
     model: str,
     existing_analysis: str,
@@ -93,6 +94,8 @@ def ontology_generator(
     extra_context: str,
     prompt: str,
     prompt2: str,
+    ontologist_feedback: Optional[str] = None,
+    previous_iteration: Optional[str] = None,
     chunk_start: int = 0,
     chunk_size: int = 1,
 ) -> str:
@@ -100,6 +103,7 @@ def ontology_generator(
     Generate an ontology extension using the provided prompt and feedback.
 
     Args:
+        client (OpenAI): The OpenAI client to use for the ontology extension.
         df (pd.DataFrame): The data to use for the ontology extension.
         model (str): The model to use for the ontology extension.
         existing_analysis (str): The existing analysis of the data.
@@ -111,6 +115,8 @@ def ontology_generator(
         extra_context (str): The extra context to use for the ontology extension.
         prompt (str): The prompt to use for the ontology extension.
         prompt2 (str): The prompt to use for the ontology extension.
+        ontologist_feedback (str): The feedback to use for the ontology extension.
+        previous_iteration (str): The previous iteration to use for the ontology extension.
         chunk_start (int, optional): The start of the chunk to use for the ontology extension. Defaults to 0.
         chunk_size (int, optional): The size of the chunk to use for the ontology extension. Defaults to 1.
 
@@ -118,8 +124,7 @@ def ontology_generator(
         str: The generated ontology extension.
     """
     partial_csv_preview = df.iloc[chunk_start : chunk_start + chunk_size]
-    iteration_result = st.session_state.get("iteration_result", None)
-    ontologist_feedback = st.session_state.get("ontologist_feedback", "")
+    ontologist_feedback = ontologist_feedback or ""
 
     full_prompt = generate_ontology_prompt(
         partial_csv_preview=partial_csv_preview,
@@ -132,16 +137,13 @@ def ontology_generator(
         extra_context=extra_context,
         prompt=prompt,
         prompt2=prompt2,
-        iteration=iteration_result,
+        iteration=previous_iteration,
         ontologist_feedback=ontologist_feedback,
     )
 
-    response = openai.chat.completions.create(
+    response = client.chat.completions.create(
         model=model, messages=[{"role": "user", "content": full_prompt}]
     )
 
     new_result = response.choices[0].message.content.strip()
-    st.session_state.iteration_result = new_result
-    st.session_state.iteration_number = st.session_state.get("iteration_number", 0) + 1
-
     return new_result

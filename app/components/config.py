@@ -35,10 +35,10 @@ class ConfigHandler:
             return ""
 
     @staticmethod
-    def handle_instructions(name: str) -> str:
+    def handle_instructions(name: str, label: str = "Edit Instructions") -> str:
         """Handle instruction loading and editing."""
         state_key = f"instructions_{name}"
         if state_key not in st.session_state:
             st.session_state[state_key] = ConfigHandler.load_default_instructions(name)
 
-        return st.text_area("Edit Instructions", key=state_key, height=300)
+        return st.text_area(label, key=state_key, height=300)

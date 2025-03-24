@@ -4,9 +4,7 @@ from typing import Dict, Optional
 import re
 import json
 
-from app.utils.logging import log
-from app.state.app_state import AppState
-from src.ingestion.extract import (
+from src.ingestion.processing import (
     analyze_step,
     analyze_tri,
     extract_concepts_step,
@@ -14,6 +12,8 @@ from src.ingestion.extract import (
     classify_extensions,
 )
 from src.generation.generator import ontology_generator
+from app.utils.logging import log
+from app.state import AppState
 from app.components.cache import get_from_cache, save_to_cache
 
 
@@ -22,10 +22,11 @@ class ProcessingHandler:
     def analyze_csv(df: pd.DataFrame, model: str) -> Dict:
         """Run CSV analysis step."""
         try:
+            client = AppState.get().client
             analysis_result = get_from_cache("analysis_result")
             if analysis_result is None:
                 log("No cache found, analyzing CSV...")
-                analysis_result = analyze_step(df, model)
+                analysis_result = analyze_step(client=client, df=df, model=model)
                 save_to_cache("analysis_result", analysis_result)
 
             AppState.get().processing_results["analysis"] = analysis_result
@@ -40,10 +41,11 @@ class ProcessingHandler:
     def extract_triplets(df: pd.DataFrame, model: str) -> Dict:
         """Extract triplets from CSV data."""
         try:
+            client = AppState.get().client
             tri_result = get_from_cache("tri_result")
             if tri_result is None:
                 log("No cache found, extracting triplets...")
-                tri_result = analyze_tri(df, model)
+                tri_result = analyze_tri(client=client, df=df, model=model)
                 save_to_cache("tri_result", tri_result)
 
             AppState.get().processing_results["triplets"] = tri_result
@@ -58,10 +60,13 @@ class ProcessingHandler:
     def extract_concepts(df: pd.DataFrame, model: str) -> Dict:
         """Extract concepts from CSV data."""
         try:
+            client = AppState.get().client
             concepts_result = get_from_cache("concepts_result")
             if concepts_result is None:
                 log("No cache found, extracting concepts...")
-                concepts_result = extract_concepts_step(df, model)
+                concepts_result = extract_concepts_step(
+                    client=client, df=df, model=model
+                )
                 save_to_cache("concepts_result", concepts_result)
 
             AppState.get().processing_results["concepts"] = concepts_result
@@ -91,7 +96,10 @@ class ProcessingHandler:
             if usage_result is None:
                 log("No cache found, gathering usage patterns...")
                 usage_result = gather_usage_step(
-                    concepts, state.processing_results["analysis"], model
+                    client=state.client,
+                    concepts=concepts,
+                    domain_theme=state.processing_results["analysis"],
+                    model=model,
                 )
                 save_to_cache("usage_result", usage_result)
 
@@ -116,12 +124,12 @@ class ProcessingHandler:
             if classification_result is None:
                 log("No cache found, classifying extensions...")
                 classification_result = classify_extensions(
-                    usage_info=state.processing_results["usage"], model=model
+                    client=state.client,
+                    usage_info=state.processing_results["usage"],
+                    model=model,
                 )
                 save_to_cache("classification_result", classification_result)
-            classification_result = [
-                json.loads(item) for item in classification_result
-            ]
+            classification_result = [json.loads(item) for item in classification_result]
 
             state.processing_results["classification"] = classification_result
             log("Extensions classified successfully")
@@ -133,15 +141,26 @@ class ProcessingHandler:
 
     @staticmethod
     def generate_ontology(
-        df: pd.DataFrame, model: str, background: str, prompt: str, guidelines: str
+        df: pd.DataFrame,
+        model: str,
+        background: str,
+        prompt: str,
+        guidelines: str,
+        ontology_feedback: str,
     ) -> Optional[str]:
         """Generate ontology based on processed data."""
         state = AppState.get()
+        if len(state.iteration_history) > 0:
+            previous_iteration = state.iteration_history[-1]
+        else:
+            previous_iteration = None
+
         try:
-            result = get_from_cache("ontology_result")
+            result = get_from_cache(f"ontology_result_{state.current_iteration}")
             if result is None:
                 log("No cache found, generating ontology...")
                 result = ontology_generator(
+                    client=state.client,
                     df=df,
                     model=model,
                     existing_analysis=state.processing_results.get("analysis", ""),
@@ -151,16 +170,17 @@ class ProcessingHandler:
                     classified_extensions=state.processing_results.get(
                         "classification", ""
                     ),
-                    base_ontology=state.reference_snippet or "",
+                    base_ontology=state.common_snippet or "",
                     extra_context=background,
                     prompt=prompt,
                     prompt2=guidelines,
+                    ontologist_feedback=ontology_feedback,
                     chunk_start=state.chunk_start,
                     chunk_size=state.chunk_size,
+                    previous_iteration=previous_iteration,
                 )
-                save_to_cache("ontology_result", result)
+                save_to_cache(f"ontology_result_{state.current_iteration}", result)
 
-            state.new_output = result
             log("Ontology generation completed successfully")
             return result
         except Exception as e:

@@ -1,5 +1,5 @@
 import streamlit as st
-from app.state.app_state import AppState
+from app.state import AppState
 from app.components.config import ConfigHandler
 from app.components.processors import ProcessingHandler
 
@@ -34,14 +34,19 @@ def show():
     cols_inst = st.columns(3)
 
     with cols_inst[0]:
-        st.subheader("AI Profile")
-        background = ConfigHandler.handle_instructions("background_prompt.txt")
+        background = ConfigHandler.handle_instructions(
+            "background_prompt.txt", label="AI Profile"
+        )
     with cols_inst[1]:
-        st.subheader("Main Instructions")
-        prompt = ConfigHandler.handle_instructions("instructions.txt")
+        prompt = ConfigHandler.handle_instructions(
+            "instructions.txt", label="Main Instructions"
+        )
     with cols_inst[2]:
-        st.subheader("Additional Instructions")
-        guidelines = ConfigHandler.handle_instructions("custom_instructions.txt")
+        guidelines = ConfigHandler.handle_instructions(
+            "custom_instructions.txt", label="Guidelines"
+        )
+
+    ontology_feedback = st.text_area("Ontology Feedback", value="", height=100)
 
     # Iteration Controls
     st.subheader("Iteration Controls")
@@ -64,10 +69,32 @@ def show():
                 background=background,
                 prompt=prompt,
                 guidelines=guidelines,
+                ontology_feedback=ontology_feedback,
             )
         state.new_output = result
+        state.iteration_history.append(
+            {
+                "background": background,
+                "prompt": prompt,
+                "guidelines": guidelines,
+                "feedback": ontology_feedback,
+                "result": result,
+            }
+        )
+        state.current_iteration += 1
 
     if state.new_output:
-        with st.expander("Generated Ontology", expanded=True):
+        suffix = (
+            f" (Iteration {state.current_iteration})"
+            if len(state.iteration_history) > 1
+            else ""
+        )
+        with st.expander(f"Generated Ontology{suffix}", expanded=True):
             st.code(state.new_output, language="turtle")
         state.status["ontology_generation"] = True
+
+    if len(state.iteration_history) > 1:
+        st.subheader("Iteration History")
+        for i in range(len(state.iteration_history) - 2, -1, -1):
+            with st.expander(f"Iteration {i+1}", expanded=False):
+                st.code(state.iteration_history[i]["result"], language="turtle")

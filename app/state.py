@@ -1,7 +1,9 @@
-from dataclasses import dataclass, field
-from typing import Optional, Dict, List
+import os
 import pandas as pd
 import streamlit as st
+from openai import OpenAI
+from dataclasses import dataclass, field
+from typing import Optional, Dict, List
 
 from app.utils.logging import log
 
@@ -10,8 +12,8 @@ from app.utils.logging import log
 class AppState:
     """Centralized state management for the application."""
 
-    # Navigation state
-    page: str = "setup"
+    # LLM state
+    client: Optional[OpenAI] = None
 
     # File-related state
     common_snippet: Optional[str] = None
@@ -20,16 +22,16 @@ class AppState:
 
     # Processing state
     processing_results: Dict = field(default_factory=dict)
-    current_iteration: int = 0
-    iteration_history: List = field(default_factory=list)
 
     # Generation state
     generated_snippet: Optional[str] = None
     new_output: Optional[str] = None
-    clean_ontology: Optional[str] = None
-    error_log: Optional[str] = None
+    current_iteration: int = 0
+    iteration_history: List = field(default_factory=list)
 
     # Evaluation state
+    clean_ontology: Optional[str] = None
+    error_log: Optional[str] = None
     discussion_result: Optional[str] = None
     comparison_result: Optional[str] = None
 
@@ -54,6 +56,10 @@ class AppState:
         """Initialize all required session state variables."""
         if "app_state" not in st.session_state:
             st.session_state.app_state = cls()
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                api_key = st.secrets["OPENAI_API_KEY"]
+            st.session_state.client = OpenAI(api_key=api_key)
             log("Initialized application state")
 
     @staticmethod

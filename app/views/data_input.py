@@ -1,5 +1,5 @@
 import streamlit as st
-from app.state.app_state import AppState
+from app.state import AppState
 from app.components.file_handlers import FileHandler
 
 

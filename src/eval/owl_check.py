@@ -33,7 +33,7 @@ Dependencies:
 
 import os
 import re
-import openai
+from openai import OpenAI
 from rdflib import Graph
 
 from owlrl import DeductiveClosure, OWLRL_Semantics
@@ -117,7 +117,7 @@ def validate_with_pyshacl(data_path: str, shapes_path: str) -> bool:
 # ChatGPT Fix Functionality
 # ------------------------------------------------------------------------------
 def query_chatgpt_for_format_issue(
-    model: any, error_message: str, ontology_content: str
+    client: OpenAI, model: str, error_message: str, ontology_content: str
 ) -> str:
     """
     Query ChatGPT for suggestions when the ontology fails to load.
@@ -130,7 +130,7 @@ def query_chatgpt_for_format_issue(
         "errors, or you can't fix them, please say so."
     )
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {
@@ -154,7 +154,11 @@ def extract_turtle_code_blocks(chatgpt_response: str) -> list:
 
 
 def iterative_chatgpt_fix_ttl(
-    model: str, ttl_file_path: str, original_error: str, max_iterations: int = 3
+    client: OpenAI,
+    model: str,
+    ttl_file_path: str,
+    original_error: str,
+    max_iterations: int = 3,
 ) -> bool:
     """
     Attempt iterative fixes of a Turtle file by querying ChatGPT for a corrected file,
@@ -170,7 +174,7 @@ def iterative_chatgpt_fix_ttl(
             return False
 
         chatgpt_response = query_chatgpt_for_format_issue(
-            model, original_error, current_content
+            client, model, original_error, current_content
         )
         code_blocks = extract_turtle_code_blocks(chatgpt_response)
         if not code_blocks:
@@ -206,7 +210,7 @@ def iterative_chatgpt_fix_ttl(
 # ------------------------------------------------------------------------------
 # SHACL Shapes Generation via LLM
 # ------------------------------------------------------------------------------
-def generate_shacl_shapes(model: str, ontology_content: str) -> str:
+def generate_shacl_shapes(client: OpenAI, model: str, ontology_content: str) -> str:
     """
     Generate SHACL shapes constraints for the given ontology using an LLM.
     """
@@ -219,7 +223,7 @@ def generate_shacl_shapes(model: str, ontology_content: str) -> str:
         + "\n\nPlease provide the SHACL shapes inside triple backticks."
     )
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {
@@ -245,6 +249,7 @@ def generate_shacl_shapes(model: str, ontology_content: str) -> str:
 # End-to-End Example: Convert TTL → OWL, Reason, Possibly Fix, SHACL, etc.
 # ------------------------------------------------------------------------------
 def convert_and_check_ttl_ontology(
+    client: OpenAI,
     model: str,
     input_ttl_path: str,
     shape_file_path: str = None,
@@ -291,7 +296,7 @@ def convert_and_check_ttl_ontology(
         error_log.append(err_msg)
         if max_chatgpt_fixes > 0:
             fix_result = iterative_chatgpt_fix_ttl(
-                model, input_ttl_path, str(e), max_iterations=max_chatgpt_fixes
+                client, model, input_ttl_path, str(e), max_iterations=max_chatgpt_fixes
             )
             if fix_result:
                 try:
@@ -329,7 +334,7 @@ def convert_and_check_ttl_ontology(
         error_log.append(err_msg)
         if max_chatgpt_fixes > 0:
             fix_result = iterative_chatgpt_fix_ttl(
-                model, input_ttl_path, str(e), max_iterations=max_chatgpt_fixes
+                client, model, input_ttl_path, str(e), max_iterations=max_chatgpt_fixes
             )
             if fix_result:
                 try:
@@ -373,7 +378,7 @@ def convert_and_check_ttl_ontology(
             error_log.append(msg)
             with open(input_ttl_path, "r", encoding="utf-8") as f:
                 ontology_content = f.read()
-            generated_shapes = generate_shacl_shapes(model, ontology_content)
+            generated_shapes = generate_shacl_shapes(client, model, ontology_content)
             if generated_shapes:
                 temp_shapes_path = "temp_shapes.ttl"
                 with open(temp_shapes_path, "w", encoding="utf-8") as f:
@@ -392,7 +397,7 @@ def convert_and_check_ttl_ontology(
         error_log.append(msg)
         with open(input_ttl_path, "r", encoding="utf-8") as f:
             ontology_content = f.read()
-        generated_shapes = generate_shacl_shapes(model, ontology_content)
+        generated_shapes = generate_shacl_shapes(client, model, ontology_content)
         if generated_shapes:
             temp_shapes_path = "temp_shapes.ttl"
             with open(temp_shapes_path, "w", encoding="utf-8") as f:
@@ -425,6 +430,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     # Example usage with placeholders
     # --------------------------------------------------------------------------
+    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     # The main Turtle file that you want to test & possibly fix
     example_ttl_file = "ies-building1.ttl"
@@ -438,6 +444,7 @@ if __name__ == "__main__":
     max_fixes = 2
 
     convert_and_check_ttl_ontology(
+        client=client,
         model="03-mini",
         input_ttl_path=example_ttl_file,
         shape_file_path=example_shacl_shapes,  # or None

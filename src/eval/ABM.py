@@ -1,14 +1,18 @@
 import os
 import json
-import openai
+from openai import OpenAI
 import re
-
-openai.api_key = os.environ.get("OPENAI_API_KEY", "your-api-key-here")
 
 
 def load_personas(config_input) -> list:
     """
     Load persona definitions from a JSON configuration dictionary, a JSON string, or a file path.
+
+    Args:
+        config_input: Either a dictionary, a JSON string, or a file path to a JSON file containing persona definitions.
+
+    Returns:
+        A list of persona dictionaries, each containing 'name' and 'prompt' keys.
     """
     if isinstance(config_input, dict):
         data = config_input
@@ -35,6 +39,14 @@ def load_personas(config_input) -> list:
 def chunk_text(text: str, chunk_size: int = 3000, overlap: int = 200) -> list:
     """
     Split text into overlapping chunks.
+
+    Args:
+        text: The text to be chunked.
+        chunk_size: The size of each chunk.
+        overlap: The number of characters to overlap between chunks.
+
+    Returns:
+        A list of chunks.
     """
     chunks = []
     start = 0
@@ -52,10 +64,26 @@ def chunk_text(text: str, chunk_size: int = 3000, overlap: int = 200) -> list:
 
 
 def rank_chunks_for_persona(
-    model: str, persona_name: str, persona_prompt: str, chunks: list, top_n: int = 3
+    client: OpenAI,
+    model: str,
+    persona_name: str,
+    persona_prompt: str,
+    chunks: list,
+    top_n: int = 3,
 ) -> list:
     """
-    Ask GPT-4 to rank each chunk by relevance to a persona and return the top_n most relevant chunks.
+    Ask an LLM to rank each chunk by relevance to a persona and return the top_n most relevant chunks.
+
+    Args:
+        client: The OpenAI client.
+        model: The model to use.
+        persona_name: The name of the persona.
+        persona_prompt: The prompt for the persona.
+        chunks: The list of chunks to rank.
+        top_n: The number of chunks to return.
+
+    Returns:
+        A list of the top_n most relevant chunks.
     """
     scored_chunks = []
     for i, chunk in enumerate(chunks):
@@ -67,7 +95,7 @@ def rank_chunks_for_persona(
             "Rate from 0 (not relevant) to 10 (highly relevant) and provide a brief explanation."
         )
         try:
-            response = openai.chat.completions.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {
@@ -101,6 +129,14 @@ def build_multi_agent_prompt(
 ) -> list:
     """
     Build a multi-agent prompt including each persona's details and relevant ontology excerpts.
+
+    Args:
+        ontology_description: The description of the ontology.
+        personas: The list of personas.
+        relevant_texts: The dictionary of relevant texts for each persona.
+
+    Returns:
+        A list of messages.
     """
     messages = [
         {
@@ -129,6 +165,7 @@ def build_multi_agent_prompt(
 
 
 def simulate_multi_agent_discussion(
+    client: OpenAI,
     model: str,
     ontology_text: str,
     ontology_description: str,
@@ -138,14 +175,27 @@ def simulate_multi_agent_discussion(
     top_n_relevant: int = 3,
 ) -> str:
     """
-    Full pipeline:
+    Simulate a multi-agent discussion between domain experts.
       1. Load personas from config.
       2. Chunk the ontology text.
       3. Rank and select top_n relevant chunks for each persona.
       4. Build the multi-agent conversation.
       5. Append an instruction for a JSON-formatted consolidated response.
-      6. Call GPT-4 to simulate the discussion.
+      6. Call an LLM to simulate the discussion.
       7. Write the JSON result to a file and return the JSON string.
+
+    Args:
+        client: The OpenAI client.
+        model: The model to use.
+        ontology_text: The text of the ontology.
+        ontology_description: The description of the ontology.
+        config_file: The path to the configuration file.
+        chunk_size: The size of each chunk.
+        overlap: The number of characters to overlap between chunks.
+        top_n_relevant: The number of relevant chunks to return.
+
+    Returns:
+        A JSON string.
     """
     # 1. Load personas (with error handling)
     try:
@@ -162,6 +212,7 @@ def simulate_multi_agent_discussion(
     relevant_texts = {}
     for persona in personas:
         top_chunks = rank_chunks_for_persona(
+            client=client,
             model=model,
             persona_name=persona["name"],
             persona_prompt=persona["prompt"],
@@ -188,7 +239,7 @@ def simulate_multi_agent_discussion(
 
     # 6. Call GPT
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=messages,
         )

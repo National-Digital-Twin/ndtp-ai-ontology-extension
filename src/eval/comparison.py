@@ -1,9 +1,18 @@
-import openai
+from openai import OpenAI
 
 
-def compare(model: any, syntetic_extension: str, reference: str) -> str:
+def compare(client: OpenAI, model: str, syntetic_extension: str, reference: str) -> str:
     """
     Query ChatGPT for suggestions when the ontology fails to load.
+
+    Args:
+        client: OpenAI client
+        model: OpenAI model
+        syntetic_extension: Generated ontology extension
+        reference: Reference ontology extension
+
+    Returns:
+        Comparison result
     """
     prompt = (
         f"Given the generated ontology extension:\n\n{syntetic_extension}\n\n"
@@ -12,7 +21,7 @@ def compare(model: any, syntetic_extension: str, reference: str) -> str:
         "For each difference, clearly indicate which extension performs better and explain why."
     )
     try:
-        response = openai.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {

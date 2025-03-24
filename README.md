@@ -221,38 +221,57 @@ The script iteratively generates and refines ontology snippets by comparing with
 
 ## Streamlit Application for Generation
 
-The project includes a Streamlit web application that provides a user-friendly interface for ontology generation.
+The project includes a Streamlit web application that provides a user-friendly interface for ontology generation through a step-by-step wizard interface.
 
 ### Features
 
-- **Setup Page**: Upload base (common) ontology, CSV data, and (optionally) areference ontology
-- **Generation Page**: Iteratively generate and refine ontology with AI assistance
-- **Results Page**: View, edit, and export the final ontology with visualisation of the generation process
+The application is organised into 4 main sections:
+
+1. **Data Input**
+   - Upload and validate input data
+   - View data preview and statistics
+
+2. **Data Processing**
+   - Run automated analysis on uploaded data
+   - Extract triplets and concepts
+   - View processing results in JSON format
+
+3. **Ontology Generation**
+   - Configure AI instructions and guidelines
+   - Control iteration parameters (chunk size and start position)
+   - Provide ontology feedback
+   - Generate ontology snippets iteratively
+
+4. **Validation**
+   - Review and validate generated ontology
+   - Compare with reference snippets
+   - Export final results
 
 ### Running the App
 
-1. **Install Streamlit**  
-   If you haven't installed Streamlit, run:
+1. **Install Dependencies**
    ```bash
-   pip install streamlit
+   pip install -r requirements.txt
    ```
 
-2. **Set up OpenAI API Key**  
-   The app requires an OpenAI API key, which can be provided in two ways:
-   - As an environment variable: `export OPENAI_API_KEY="your_api_key"`
-   - In a Streamlit secrets file: Create `.streamlit/secrets.toml` with `OPENAI_API_KEY = "your_api_key"`
+2. **Set up OpenAI API Key**
+   The app requires an OpenAI API key, which can be provided in either:
+   - Environment variable: `export OPENAI_API_KEY="your_api_key"`
+   - Streamlit secrets file: Create `.streamlit/secrets.toml` with:
+     ```toml
+     OPENAI_API_KEY = "your_api_key"
+     ```
 
-3. **Launch the App**  
+3. **Launch the App**
    ```bash
    streamlit run app/main.py
    ```
 
-4. **Using the App**  
-   - Start on the Setup page to configure inputs
-   - Proceed to the Generation page to create and refine ontologies
-   - View and export results on the Results page
-
-The Streamlit app is currently a work in progress.
+4. **Using the App**
+   - Follow the step-by-step wizard interface
+   - Each section must be completed in order
+   - Progress is tracked and saved in the application state
+   - Use the sidebar navigation to move between sections
 
 ## Analysis and Visualization
 
@@ -281,52 +300,63 @@ For more details, see the [embedding analysis documentation](docs/embedding_anal
 
 The project is organized as follows:
 
-```
-ndtp-ai-ontology-extension/
-├── .github/                  # GitHub specific files
-|   ├── CONTRIBUTING.md
-|   └── PULL_REQUEST_TEMPLATE
-├── src/                      # Source code directory
-│   ├── __init__.py
-│   ├── ingestion/            # Ingestion and extraction modules
-│   │   ├── __init__.py
-│   │   ├── helpers.py        # Functions to read data (CSV, JSON, RDF)
-│   │   ├── extract.py        # Extracts candidate ontology entities from tabular data
-│   │   └── ontology.py       # Ingests RDF/Turtle ontology files
-│   ├── generation/           # Ontology generation modules
-│   │   ├── __init__.py
-│   │   ├── llm_interface.py  # Functions for interacting with LLMs
-│   │   └── iteration.py      # Functions for managing iterative workflow
-│   ├── analysis/             # Analysis and visualization modules
-│   │   ├── __init__.py
-│   │   ├── representations.py # Entity representation functions
-│   │   ├── namespaces.py     # Namespace analysis functions
-│   │   ├── columns.py        # Column mapping functions
-│   │   └── values.py         # Value mapping functions
-│   ├── validation/           # Validation modules
-│   │   └── __init__.py
-├── data/                     # Data directory (no __init__.py needed)
-│   ├── raw/                  # Raw data files (e.g., CSV, JSON)
-│   ├── processed/            # Data after transformation
-│   └── ontologies/           # Ontology definitions and exports
-├── tests/                    # Test scripts
-│   ├── __init__.py
-│   ├── test_ingestion.py
-│   ├── test_transformation.py
-│   └── test_validation.py
-├── results/                  # Output files
-├── logs/                     # Log files
-├── docs/                     # Documentation
-│   └── embedding_analysis/   # Documentation for embedding analysis
-├── scripts/                  # Executable scripts
-│   ├── extract_entities_ttl.py
-│   ├── extract_entities.py
-│   └── analyse_ontology.py
-├── .gitignore
-├── requirements.txt
-├── LICENSE.md
-└── README.md
-```
+    ndtp-ai-ontology-extension/
+    ├── .github/                  # GitHub specific files
+    |   ├── CONTRIBUTING.md
+    |   └── PULL_REQUEST_TEMPLATE
+    ├── src/                      # Core library code
+    │   ├── __init__.py
+    │   ├── ingestion/           # Ingestion and extraction modules
+    │   │   ├── __init__.py
+    │   │   ├── helpers.py       # Functions to read data (CSV, JSON, RDF)
+    │   │   ├── extract.py       # Extracts candidate ontology entities
+    │   │   └── ontology.py      # Ingests RDF/Turtle ontology files
+    │   ├── generation/          # Ontology generation modules
+    │   │   ├── __init__.py
+    │   │   ├── llm_interface.py # Functions for interacting with LLMs
+    │   │   └── iteration.py     # Functions for managing iterative workflow
+    │   ├── analysis/            # Analysis and visualization modules
+    │   │   ├── __init__.py
+    │   │   ├── representations.py
+    │   │   ├── namespaces.py    # Namespace analysis functions
+    │   │   ├── columns.py       # Column mapping functions
+    │   │   └── values.py        # Value mapping functions
+    │   └── validation/          # Validation modules
+    │       └── __init__.py
+    ├── app/                      # Streamlit application
+    │   ├── __init__.py
+    │   ├── main.py              # Main Streamlit app entry point
+    │   ├── state.py             # Application state management
+    │   ├── components/          # Reusable UI components
+    │   │   ├── __init__.py
+    │   │   ├── config.py        # Configuration handlers
+    │   │   ├── file_handlers.py # File upload handlers
+    │   │   ├── processors.py    # Data processing components
+    │   │   └── evaluators.py    # Evaluation components
+    │   ├── views/               # Page views
+    │   │   ├── __init__.py
+    │   │   ├── data_input.py    # Data input view
+    │   │   ├── processing.py    # Processing view
+    │   │   ├── generation.py    # Generation view
+    │   │   └── evaluation.py    # Evaluation view
+    │   └── utils/               # Utility functions
+    │       ├── __init__.py
+    │       └── logging.py       # Logging
+    ├── .streamlit/              # Streamlit configuration
+    │   └── config.toml          # Streamlit theme and server settings
+    ├── data/                    # Data directory
+    ├── tests/                   # Test scripts
+    ├── docs/                    # Documentation
+    │   └── embedding_analysis/  # Documentation for embedding analysis
+    ├── scripts/                 # Executable scripts
+    │   ├── analyse_ontology.py
+    │   ├── extract_entities_ttl.py
+    │   ├── extract_entities.py
+    │   └── generate_ontology.py
+    ├── .gitignore
+    ├── requirements.txt
+    ├── LICENSE.md
+    └── README.md
 
 ## Security
 

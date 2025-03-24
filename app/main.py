@@ -4,7 +4,7 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.utils.logging import log
-from app.state.app_state import AppState
+from app.state import AppState
 from app.views import data_input, processing, generation, evaluation
 
 
@@ -72,7 +72,7 @@ def main():
 
     st.set_page_config(
         page_title="Ontology Generator",
-        page_icon="🧠",
+        page_icon="app/images/logo.png",
         layout="wide",
         initial_sidebar_state="expanded",
     )

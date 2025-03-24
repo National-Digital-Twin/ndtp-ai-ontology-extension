@@ -1,6 +1,6 @@
 import json
 import streamlit as st
-from app.state.app_state import AppState
+from app.state import AppState
 from app.components.evaluators import EvaluationHandler
 from app.components.config import ConfigHandler
 from app.components.file_handlers import FileHandler
@@ -48,9 +48,49 @@ def show():
         st.markdown("Build Personas & Scenario")
         col_abm = st.columns(2)
         with col_abm[0]:
-            personas = ConfigHandler.handle_instructions("personas.json")
+            # Load default personas
+            default_personas = json.loads(
+                ConfigHandler.load_default_instructions("personas.json")
+            )
+            if "personas_list" not in st.session_state:
+                st.session_state.personas_list = default_personas["personas"]
+
+            st.subheader("Personas")
+
+            # Add new persona button
+            if st.button("Add New Persona"):
+                st.session_state.personas_list.append(
+                    {"name": "", "description": "", "prompt": ""}
+                )
+
+            # Create form for each persona
+            for i, persona in enumerate(st.session_state.personas_list):
+                with st.container(border=True):
+                    col1, col2 = st.columns([0.9, 0.1])
+                    with col1:
+                        st.subheader(f"Persona {i+1}")
+                    with col2:
+                        if st.button("🗑️", key=f"delete_{i}"):
+                            st.session_state.personas_list.pop(i)
+                            st.rerun()
+
+                    persona["name"] = st.text_input(
+                        "Name", persona["name"], key=f"name_{i}"
+                    )
+                    persona["description"] = st.text_input(
+                        "Description", persona["description"], key=f"desc_{i}"
+                    )
+                    persona["prompt"] = st.text_area(
+                        "Prompt", persona["prompt"], key=f"prompt_{i}", height=100
+                    )
+
+            # Convert back to required format
+            personas = {"personas": st.session_state.personas_list}
+
         with col_abm[1]:
-            scene = ConfigHandler.handle_instructions("scenario_personas.txt")
+            scene = ConfigHandler.handle_instructions(
+                "scenario_personas.txt", label="Scenario"
+            )
         if st.button(
             "Start Multi Agent Discussion", use_container_width=True, type="primary"
         ):
@@ -97,4 +137,4 @@ def show():
         if state.comparison_result:
             with st.container(border=True):
                 st.subheader("Comparison Report")
-                st.write(state.comparison_result)
+                st.text(state.comparison_result)
