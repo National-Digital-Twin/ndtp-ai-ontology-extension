@@ -59,7 +59,7 @@ class AppState:
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
                 api_key = st.secrets["OPENAI_API_KEY"]
-            st.session_state.client = OpenAI(api_key=api_key)
+            st.session_state.app_state.client = OpenAI(api_key=api_key)
             log("Initialized application state")
 
     @staticmethod
