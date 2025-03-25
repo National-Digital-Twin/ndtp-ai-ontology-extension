@@ -40,6 +40,13 @@ def show():
         with st.expander("Validated Ontology Extension", expanded=True):
             st.code(state.clean_ontology, language="turtle")
 
+        st.download_button(
+            label="Download Validated Ontology Extension",
+            data=state.clean_ontology,
+            file_name="validated_ontology.ttl",
+            mime="text/turtle",
+        )
+
     st.subheader("4.2 ABM Simulation")
     if not state.clean_ontology:
         st.warning(
@@ -96,7 +103,10 @@ def show():
             "Start Multi Agent Discussion", use_container_width=True, type="primary"
         ):
             with st.spinner("Running multi-agent discussion simulation..."):
-                state.discussion_result = EvaluationHandler.run_abm_simulation(
+                (
+                    state.discussion_result,
+                    state.discussion_error_message,
+                ) = EvaluationHandler.run_abm_simulation(
                     model=state.model,
                     clean_ontology=state.clean_ontology,
                     scene=scene,
@@ -104,17 +114,23 @@ def show():
                 )
 
         if state.discussion_result:
-            discussion_dict = json.loads(state.discussion_result)
-            for role, feedback in discussion_dict.items():
-                with st.expander(f"💬 **{role}**", expanded=True):
-                    st.write(feedback)
+            try:
+                discussion_dict = json.loads(state.discussion_result)
+                for role, feedback in discussion_dict.items():
+                    with st.expander(f"💬 **{role}**", expanded=True):
+                        st.write(feedback)
 
-            st.download_button(
-                label="Download Discussion Result as JSON",
-                data=state.discussion_result,
-                file_name="discussion_result.json",
-                mime="application/json",
-            )
+                st.download_button(
+                    label="Download Discussion Result as JSON",
+                    data=state.discussion_result,
+                    file_name="discussion_result.json",
+                    mime="application/json",
+                )
+            except Exception as e:
+                st.error(str(e))
+
+        if state.discussion_error_message:
+            st.error(state.discussion_error_message)
 
     st.subheader("4.3 Compare Against Reference")
 

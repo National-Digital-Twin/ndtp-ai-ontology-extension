@@ -300,63 +300,32 @@ For more details, see the [embedding analysis documentation](docs/embedding_anal
 
 The project is organized as follows:
 
-    ndtp-ai-ontology-extension/
-    ├── .github/                  # GitHub specific files
-    |   ├── CONTRIBUTING.md
-    |   └── PULL_REQUEST_TEMPLATE
-    ├── src/                      # Core library code
-    │   ├── __init__.py
-    │   ├── ingestion/           # Ingestion and extraction modules
-    │   │   ├── __init__.py
-    │   │   ├── helpers.py       # Functions to read data (CSV, JSON, RDF)
-    │   │   ├── extract.py       # Extracts candidate ontology entities
-    │   │   └── ontology.py      # Ingests RDF/Turtle ontology files
-    │   ├── generation/          # Ontology generation modules
-    │   │   ├── __init__.py
-    │   │   ├── llm_interface.py # Functions for interacting with LLMs
-    │   │   └── iteration.py     # Functions for managing iterative workflow
-    │   ├── analysis/            # Analysis and visualization modules
-    │   │   ├── __init__.py
-    │   │   ├── representations.py
-    │   │   ├── namespaces.py    # Namespace analysis functions
-    │   │   ├── columns.py       # Column mapping functions
-    │   │   └── values.py        # Value mapping functions
-    │   └── validation/          # Validation modules
-    │       └── __init__.py
-    ├── app/                      # Streamlit application
-    │   ├── __init__.py
-    │   ├── main.py              # Main Streamlit app entry point
-    │   ├── state.py             # Application state management
-    │   ├── components/          # Reusable UI components
-    │   │   ├── __init__.py
-    │   │   ├── config.py        # Configuration handlers
-    │   │   ├── file_handlers.py # File upload handlers
-    │   │   ├── processors.py    # Data processing components
-    │   │   └── evaluators.py    # Evaluation components
-    │   ├── views/               # Page views
-    │   │   ├── __init__.py
-    │   │   ├── data_input.py    # Data input view
-    │   │   ├── processing.py    # Processing view
-    │   │   ├── generation.py    # Generation view
-    │   │   └── evaluation.py    # Evaluation view
-    │   └── utils/               # Utility functions
-    │       ├── __init__.py
-    │       └── logging.py       # Logging
-    ├── .streamlit/              # Streamlit configuration
-    │   └── config.toml          # Streamlit theme and server settings
-    ├── data/                    # Data directory
-    ├── tests/                   # Test scripts
-    ├── docs/                    # Documentation
-    │   └── embedding_analysis/  # Documentation for embedding analysis
-    ├── scripts/                 # Executable scripts
-    │   ├── analyse_ontology.py
-    │   ├── extract_entities_ttl.py
-    │   ├── extract_entities.py
-    │   └── generate_ontology.py
-    ├── .gitignore
-    ├── requirements.txt
-    ├── LICENSE.md
-    └── README.md
+```plaintext
+ndtp-ai-ontology-extension/
+├── .github/                  
+├── data/                           # Data directory
+├── src/                            # Core library code
+│   ├── ingestion/                  # Ingestion and extraction functions
+│   ├── generation/                 # Ontology generation functions
+│   ├── analysis/                   # Analysis and visualization functions
+│   └── validation/                 # Ontology validation functions
+├── tests/                          # Test scripts
+├── scripts/                  
+│   ├── analyse_ontology.py
+│   ├── extract_entities_ttl.py
+│   ├── extract_entities.py
+│   └── generate_ontology.py
+├── app/                            # Streamlit application
+│   ├── components/                 # Application components
+│   ├── views/                      # UI views
+│   └── utils/                      # Utility functions
+├── .streamlit/                      
+│   └── config.toml                 # Streamlit settings
+├── docs/                           
+│   └── embedding_analysis/         # Documentation for embedding analysis
+├── requirements.txt
+└── README.md
+```
 
 ## Security
 

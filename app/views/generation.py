@@ -50,10 +50,18 @@ def show():
 
     # Iteration Controls
     st.subheader("Iteration Controls")
+
+    all_columns = state.csv_data.columns.tolist()
+    state.chunk_columns = st.multiselect(
+        "Chunk Columns",
+        options=all_columns,
+        default=all_columns,
+    )
+
     col_control = st.columns(2)
     with col_control[0]:
         state.chunk_start = st.number_input(
-            "Chunk Start", min_value=0, value=state.chunk_start, step=1
+            "Chunk Row Start", min_value=0, value=state.chunk_start, step=1
         )
     with col_control[1]:
         state.chunk_size = st.number_input(
@@ -92,6 +100,13 @@ def show():
         with st.expander(f"Generated Ontology Extension{suffix}", expanded=True):
             st.code(state.new_output, language="turtle")
         state.status["ontology_generation"] = True
+
+        st.download_button(
+            label="Download Generated Ontology Extension",
+            data=state.new_output,
+            file_name="generated_ontology.ttl",
+            mime="text/turtle",
+        )
 
     if len(state.iteration_history) > 1:
         st.subheader("Iteration History")

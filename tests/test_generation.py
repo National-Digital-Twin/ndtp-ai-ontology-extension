@@ -118,44 +118,21 @@ class TestGenerator:
         self.mock_chat.completions.create.return_value = mock_response
 
         result = ontology_generator(
-            client=self.mock_client, df=sample_dataframe, model="gpt-4", **sample_inputs
+            client=self.mock_client,
+            df=sample_dataframe,
+            model="gpt-4o",
+            **sample_inputs
         )
 
         # Check that the API was called correctly
         self.mock_chat.completions.create.assert_called_once()
         call_args = self.mock_chat.completions.create.call_args[1]
-        assert call_args["model"] == "gpt-4"
+        assert call_args["model"] == "gpt-4o"
         assert isinstance(call_args["messages"], list)
         assert call_args["messages"][0]["role"] == "user"
 
         # Check the result
         assert result == "@prefix building: <http://example.org/building#> ."
-
-    def test_ontology_generator_with_chunks(self, sample_dataframe, sample_inputs):
-        """Test ontology generator with custom chunk parameters."""
-        # Mock the OpenAI API response
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Test ontology"
-        self.mock_chat.completions.create.return_value = mock_response
-
-        result = ontology_generator(
-            client=self.mock_client,
-            df=sample_dataframe,
-            model="gpt-4",
-            chunk_start=1,
-            chunk_size=1,
-            **sample_inputs
-        )
-
-        # Verify that chunking was applied correctly
-        call_args = self.mock_chat.completions.create.call_args[1]
-        messages = call_args["messages"]
-        prompt = messages[0]["content"]
-
-        # Only the second row should be in the preview
-        assert "Building B" in prompt
-        assert "Building A" not in prompt
 
     @patch("pandas.DataFrame")
     def test_ontology_generator_empty_dataframe(self, mock_df, sample_inputs):
@@ -170,7 +147,7 @@ class TestGenerator:
         self.mock_chat.completions.create.return_value = mock_response
 
         result = ontology_generator(
-            client=self.mock_client, df=mock_df, model="gpt-4", **sample_inputs
+            client=self.mock_client, df=mock_df, model="gpt-4o", **sample_inputs
         )
 
         # The function should still work with empty data

@@ -33,13 +33,15 @@ class AppState:
     clean_ontology: Optional[str] = None
     error_log: Optional[str] = None
     discussion_result: Optional[str] = None
+    discussion_error_message: Optional[str] = None
     comparison_result: Optional[str] = None
 
     # Configuration
     model: str = "o3-mini"
     output_filename: str = "ontology.ttl"
     chunk_start: int = 0
-    chunk_size: int = 2
+    chunk_size: int = 25
+    chunk_columns: List[str] = field(default_factory=list)
     running: bool = False
     extension_saved: bool = False
 

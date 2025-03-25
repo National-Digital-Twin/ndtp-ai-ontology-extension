@@ -1,7 +1,8 @@
 import os
+import re
 import json
 from openai import OpenAI
-import re
+from typing import Tuple, Optional
 
 
 def load_personas(config_input) -> list:
@@ -58,7 +59,7 @@ def chunk_text(text: str, chunk_size: int = 3000, overlap: int = 200) -> list:
         start = end - overlap
         if start < 0:
             start = 0
-        if start >= text_length:
+        if start >= (text_length - overlap + 1):
             break
     return chunks
 
@@ -173,7 +174,8 @@ def simulate_multi_agent_discussion(
     chunk_size: int = 3000,
     overlap: int = 200,
     top_n_relevant: int = 3,
-) -> str:
+    output_file: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[str]]:
     """
     Simulate a multi-agent discussion between domain experts.
       1. Load personas from config.
@@ -193,17 +195,21 @@ def simulate_multi_agent_discussion(
         chunk_size: The size of each chunk.
         overlap: The number of characters to overlap between chunks.
         top_n_relevant: The number of relevant chunks to return.
+        output_file: The path to the output file.
 
     Returns:
-        A JSON string.
+        A tuple containing:
+        - A JSON string.
+        - An optional error message if an error occurs.
     """
     # 1. Load personas (with error handling)
     try:
         personas = load_personas(config_file)
     except Exception as e:
-        return f"Error loading personas: {e}"
+        return None, f"Error loading personas: {e}"
+
     if not personas:
-        return "No personas found in the configuration."
+        return None, "No personas found in the configuration."
 
     # 2. Chunk the ontology
     chunks = chunk_text(ontology_text, chunk_size=chunk_size, overlap=overlap)
@@ -251,8 +257,9 @@ def simulate_multi_agent_discussion(
     try:
         final_json = json.loads(final_response_text)
         json_output = json.dumps(final_json, indent=2)
-        with open("discussion_result.json", "w", encoding="utf-8") as f:
-            f.write(json_output)
-        return json_output
+        if output_file:
+            with open(output_file, "w", encoding="utf-8") as f:
+                f.write(json_output)
+        return json_output, None
     except Exception as e:
-        return f"Error parsing JSON: {e}\nRaw response:\n{final_response_text}"
+        return None, f"Error parsing JSON: {e}\nRaw response:\n{final_response_text}"

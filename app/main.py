@@ -3,6 +3,7 @@ import sys
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.components.cache import Cache
 from app.utils.logging import log
 from app.state import AppState
 from app.views import data_input, processing, generation, evaluation
@@ -78,7 +79,15 @@ def main():
     )
     log("Streamlit page configuration set")
 
+    # Initialise state and cache
     AppState.initialize()
+    use_cache = st.get_option("app.use_cache")
+    cache_path = st.get_option("app.cache_path")
+    st.session_state.cache = Cache(use_cache=use_cache, cache_file=cache_path)
+    if use_cache:
+        log(f"Cache initialised at: {cache_path}")
+    else:
+        log("Cache disabled")
 
     log(f"Showing page...")
     show()

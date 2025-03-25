@@ -153,13 +153,17 @@ class ProcessingHandler:
         else:
             previous_iteration = None
 
+        # Filter dataframe to view
+        df_view = df.iloc[state.chunk_start : state.chunk_start + state.chunk_size]
+        df_view = df_view[state.chunk_columns]
+
         try:
             result = get_from_cache(f"ontology_result_{state.current_iteration}")
             if result is None:
                 log("No cache found, generating ontology...")
                 result = ontology_generator(
                     state.client,
-                    df,
+                    df_view,
                     model,
                     state.processing_results.get("analysis", ""),
                     state.processing_results.get("triples", ""),
@@ -171,8 +175,6 @@ class ProcessingHandler:
                     prompt,
                     guidelines,
                     ontologist_feedback=ontology_feedback,
-                    chunk_start=state.chunk_start,
-                    chunk_size=state.chunk_size,
                     previous_iteration=previous_iteration,
                 )
                 save_to_cache(f"ontology_result_{state.current_iteration}", result)

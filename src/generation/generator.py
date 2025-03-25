@@ -96,8 +96,6 @@ def ontology_generator(
     prompt2: str,
     ontologist_feedback: Optional[str] = None,
     previous_iteration: Optional[str] = None,
-    chunk_start: int = 0,
-    chunk_size: int = 1,
 ) -> str:
     """
     Generate an ontology extension using the provided prompt and feedback.
@@ -117,17 +115,14 @@ def ontology_generator(
         prompt2 (str): The prompt to use for the ontology extension.
         ontologist_feedback (str): The feedback to use for the ontology extension.
         previous_iteration (str): The previous iteration to use for the ontology extension.
-        chunk_start (int, optional): The start of the chunk to use for the ontology extension. Defaults to 0.
-        chunk_size (int, optional): The size of the chunk to use for the ontology extension. Defaults to 1.
 
     Returns:
         str: The generated ontology extension.
     """
-    partial_csv_preview = df.iloc[chunk_start : chunk_start + chunk_size]
     ontologist_feedback = ontologist_feedback or ""
 
     full_prompt = generate_ontology_prompt(
-        partial_csv_preview=partial_csv_preview,
+        partial_csv_preview=df,
         existing_analysis=existing_analysis,
         existing_triples=existing_triples,
         extracted_concepts=extracted_concepts,

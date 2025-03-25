@@ -65,10 +65,7 @@ class FileHandler:
             st.error("No CSV files could be read.")
             return None
 
-        # Preview each file
         FileHandler._preview_dataframes(dfs, file_names)
-
-        # Handle merging
         return FileHandler._merge_dataframes(dfs)
 
     @staticmethod
@@ -99,7 +96,6 @@ class FileHandler:
             st.warning("No common columns found. Using first CSV as fallback.")
             return dfs[0]
 
-        # Merge based on user selection
         st.info(f"Common columns found: {', '.join(common_columns)}")
         chosen_column = st.selectbox(
             "Select the column to merge on", options=common_columns
@@ -112,11 +108,10 @@ class FileHandler:
             )
             return dfs[0]
 
-        # Perform merge
         result = merge_dfs[0]
         for df in merge_dfs[1:]:
             result = pd.merge(result, df, on=chosen_column, how="outer")
         st.success(f"CSV files merged on column: {chosen_column}.")
-        with st.expander("📄 Preview Combined Data"):
-            st.dataframe(result.head(5))
+        with st.expander("📄 Combined Data"):
+            st.dataframe(result)
         return result

@@ -1,9 +1,9 @@
 import streamlit as st
 from typing import Tuple, List, Optional
 
-from src.eval.abm import simulate_multi_agent_discussion
-from src.eval.comparison import compare
-from src.eval.owl_check import convert_and_check_ttl_ontology
+from src.validation.abm import simulate_multi_agent_discussion
+from src.validation.comparison import compare
+from src.validation.validator import OntologyValidator
 
 from app.utils.logging import log
 from app.state import AppState
@@ -21,12 +21,14 @@ class EvaluationHandler:
             if validation_result is None:
                 log("No cache found, running validation...")
                 client = AppState.get().client
-                clean_ontology, error_log = convert_and_check_ttl_ontology(
-                    client=client,
-                    model=model,
-                    input_ttl_path=ontology_code,
-                    max_chatgpt_fixes=5,
+
+                validator = OntologyValidator(
+                    client=client, model=model, max_chatgpt_fixes=5
                 )
+                clean_ontology, error_log = validator.validate(
+                    input_ttl_path=ontology_code
+                )
+
                 validation_result = {
                     "clean_ontology": clean_ontology,
                     "error_log": error_log,
@@ -46,14 +48,16 @@ class EvaluationHandler:
     @staticmethod
     def run_abm_simulation(
         model: str, clean_ontology: str, scene: str, personas: str
-    ) -> Optional[str]:
+    ) -> Tuple[Optional[str], Optional[str]]:
         """Run ABM simulation with the validated ontology extension."""
         try:
             client = AppState.get().client
-            discussion_result = get_from_cache("discussion_result")
-            if discussion_result is None:
+            discussion_result_with_error_message = get_from_cache(
+                "discussion_result_with_error_message"
+            )
+            if discussion_result_with_error_message is None:
                 log("No cache found, running discussion...")
-                discussion_result = simulate_multi_agent_discussion(
+                discussion_result, error_message = simulate_multi_agent_discussion(
                     client=client,
                     model=model,
                     ontology_text=clean_ontology,
@@ -63,14 +67,24 @@ class EvaluationHandler:
                     overlap=200,
                     top_n_relevant=2,
                 )
-                save_to_cache("discussion_result", discussion_result)
+                discussion_result_with_error_message = {
+                    "result": discussion_result,
+                    "error_message": error_message,
+                }
+                save_to_cache(
+                    "discussion_result_with_error_message",
+                    discussion_result_with_error_message,
+                )
+
+            discussion_result = discussion_result_with_error_message["result"]
+            error_message = discussion_result_with_error_message["error_message"]
 
             log("ABM simulation completed successfully")
-            return discussion_result
+            return discussion_result, error_message
         except Exception as e:
             log(f"Error in ABM simulation: {e}", "ERROR")
             st.error(f"ABM simulation failed: {e}")
-            return None
+            return None, str(e)
 
     @staticmethod
     def compare_with_reference(
