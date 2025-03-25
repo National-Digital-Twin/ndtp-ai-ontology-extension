@@ -15,7 +15,7 @@ def show():
         state.status["evaluation"] = False
         return
 
-    st.subheader("4.1 Validate Ontology")
+    st.subheader("4.1 Validate Extension")
     if st.button("Run Validation", use_container_width=True, type="primary"):
         with st.spinner("Running Validation..."):
             clean_ontology, error_log = EvaluationHandler.validate_ontology(
@@ -36,13 +36,13 @@ def show():
             st.code("\n".join(error_log), language="text")
 
     if state.clean_ontology:
-        with st.expander("Validated Ontology", expanded=True):
+        with st.expander("Validated Ontology Extension", expanded=True):
             st.code(state.clean_ontology, language="turtle")
 
     st.subheader("4.2 ABM Simulation")
     if not state.clean_ontology:
         st.warning(
-            "Validated ontology not available. Please complete validation successfully first."
+            "Validated ontology extension not available. Please complete validation successfully first."
         )
     else:
         st.markdown("Build Personas & Scenario")
@@ -68,7 +68,7 @@ def show():
                 with st.container(border=True):
                     col1, col2 = st.columns([0.9, 0.1])
                     with col1:
-                        st.subheader(f"Persona {i+1}")
+                        st.markdown(f"#### Persona {i+1}")
                     with col2:
                         if st.button("🗑️", key=f"delete_{i}"):
                             st.session_state.personas_list.pop(i)
@@ -81,7 +81,7 @@ def show():
                         "Description", persona["description"], key=f"desc_{i}"
                     )
                     persona["prompt"] = st.text_area(
-                        "Prompt", persona["prompt"], key=f"prompt_{i}", height=100
+                        "Profile", persona["prompt"], key=f"prompt_{i}", height=100
                     )
 
             # Convert back to required format
@@ -119,7 +119,7 @@ def show():
 
     if not state.clean_ontology:
         st.warning(
-            "Validated ontology not available. Please complete validation successfully first."
+            "Validated ontology extension not available. Please complete validation successfully first."
         )
     else:
         FileHandler.handle_reference_snippet()

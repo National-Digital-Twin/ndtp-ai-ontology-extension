@@ -47,7 +47,7 @@ class EvaluationHandler:
     def run_abm_simulation(
         model: str, clean_ontology: str, scene: str, personas: str
     ) -> Optional[str]:
-        """Run ABM simulation with the validated ontology."""
+        """Run ABM simulation with the validated ontology extension."""
         try:
             client = AppState.get().client
             discussion_result = get_from_cache("discussion_result")

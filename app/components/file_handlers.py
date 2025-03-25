@@ -11,15 +11,15 @@ class FileHandler:
     def handle_common_snippet() -> None:
         """Handle common snippet upload."""
         common_snippet_file = st.file_uploader(
-            "Upload Common Snippet (TTL template)", type=["ttl", "txt"]
+            "Upload Base Ontology (TTL template)", type=["ttl", "txt"]
         )
         if common_snippet_file is not None:
             content = common_snippet_file.getvalue().decode("utf-8")
             AppState.get().common_snippet = content
-            st.success("Common snippet uploaded successfully!")
-            with st.expander("Preview Common Snippet"):
+            st.success("Base ontology file uploaded successfully!")
+            with st.expander("Preview Base Ontology File"):
                 st.code(content, language="turtle")
-            log("Common snippet uploaded and stored")
+            log("Base ontology file uploaded and stored")
 
     @staticmethod
     def handle_csv_upload() -> Optional[pd.DataFrame]:
@@ -35,17 +35,17 @@ class FileHandler:
     @staticmethod
     def handle_reference_snippet() -> None:
         """Handle reference snippet upload."""
-        st.write("Upload a reference snippet to compare with the generated output")
+        st.write("Upload a reference extension to compare with the generated output")
         reference_file = st.file_uploader(
-            "Upload Reference Snippet", type=["ttl", "txt"]
+            "Upload Reference Ontology Extension", type=["ttl", "txt"]
         )
         if reference_file is not None:
             content = reference_file.getvalue().decode("utf-8")
             AppState.get().reference_snippet = content
-            st.success("Reference snippet uploaded successfully!")
-            with st.expander("Preview Reference Snippet"):
+            st.success("Reference ontology extension uploaded successfully!")
+            with st.expander("Preview Reference Extension"):
                 st.code(content, language="turtle")
-            log("Reference snippet uploaded and stored")
+            log("Reference ontology extension uploaded and stored")
 
     @staticmethod
     def _process_csv_files(files: List) -> Optional[pd.DataFrame]:
