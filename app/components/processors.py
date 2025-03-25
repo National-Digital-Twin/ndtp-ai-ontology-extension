@@ -14,7 +14,7 @@ from src.ingestion.processing import (
 from src.generation.generator import ontology_generator
 from app.utils.logging import log
 from app.state import AppState
-from app.components.cache import get_from_cache, save_to_cache
+from app.components.cache import get_cache
 
 
 class ProcessingHandler:
@@ -23,11 +23,11 @@ class ProcessingHandler:
         """Run CSV analysis step."""
         try:
             client = AppState.get().client
-            analysis_result = get_from_cache("analysis_result")
+            analysis_result = get_cache().get_from_cache("analysis_result")
             if analysis_result is None:
                 log("No cache found, analyzing CSV...")
                 analysis_result = analyze_step(client, df, model)
-                save_to_cache("analysis_result", analysis_result)
+                get_cache().save_to_cache("analysis_result", analysis_result)
 
             AppState.get().processing_results["analysis"] = analysis_result
             log("CSV analysis completed successfully")
@@ -42,11 +42,11 @@ class ProcessingHandler:
         """Extract triples from CSV data."""
         try:
             client = AppState.get().client
-            tri_result = get_from_cache("tri_result")
+            tri_result = get_cache().get_from_cache("tri_result")
             if tri_result is None:
                 log("No cache found, extracting triples...")
                 tri_result = analyze_tri(client, df, model)
-                save_to_cache("tri_result", tri_result)
+                get_cache().save_to_cache("tri_result", tri_result)
 
             AppState.get().processing_results["triples"] = tri_result
             log("Triple extraction completed successfully")
@@ -61,11 +61,11 @@ class ProcessingHandler:
         """Extract concepts from CSV data."""
         try:
             client = AppState.get().client
-            concepts_result = get_from_cache("concepts_result")
+            concepts_result = get_cache().get_from_cache("concepts_result")
             if concepts_result is None:
                 log("No cache found, extracting concepts...")
                 concepts_result = extract_concepts_step(client, df, model)
-                save_to_cache("concepts_result", concepts_result)
+                get_cache().save_to_cache("concepts_result", concepts_result)
 
             AppState.get().processing_results["concepts"] = concepts_result
             log("Concept extraction completed successfully")
@@ -90,7 +90,7 @@ class ProcessingHandler:
             raw_str = state.processing_results["concepts"]
             concepts = re.findall(r'"([^"]+)"', raw_str)
 
-            usage_result = get_from_cache("usage_result")
+            usage_result = get_cache().get_from_cache("usage_result")
             if usage_result is None:
                 log("No cache found, gathering usage patterns...")
                 usage_result = gather_usage_step(
@@ -99,7 +99,7 @@ class ProcessingHandler:
                     state.processing_results["analysis"],
                     model,
                 )
-                save_to_cache("usage_result", usage_result)
+                get_cache().save_to_cache("usage_result", usage_result)
 
             state.processing_results["usage"] = usage_result
             log("Usage patterns gathered successfully")
@@ -118,7 +118,7 @@ class ProcessingHandler:
             return None
 
         try:
-            classification_result = get_from_cache("classification_result")
+            classification_result = get_cache().get_from_cache("classification_result")
             if classification_result is None:
                 log("No cache found, classifying extensions...")
                 classification_result = classify_extensions(
@@ -126,7 +126,9 @@ class ProcessingHandler:
                     state.processing_results["usage"],
                     model,
                 )
-                save_to_cache("classification_result", classification_result)
+                get_cache().save_to_cache(
+                    "classification_result", classification_result
+                )
             classification_result = [json.loads(item) for item in classification_result]
 
             state.processing_results["classification"] = classification_result
@@ -158,7 +160,9 @@ class ProcessingHandler:
         df_view = df_view[state.chunk_columns]
 
         try:
-            result = get_from_cache(f"ontology_result_{state.current_iteration}")
+            result = get_cache().get_from_cache(
+                f"ontology_result_{state.current_iteration}"
+            )
             if result is None:
                 log("No cache found, generating ontology...")
                 result = ontology_generator(
@@ -177,7 +181,9 @@ class ProcessingHandler:
                     ontologist_feedback=ontology_feedback,
                     previous_iteration=previous_iteration,
                 )
-                save_to_cache(f"ontology_result_{state.current_iteration}", result)
+                get_cache().save_to_cache(
+                    f"ontology_result_{state.current_iteration}", result
+                )
 
             log("Ontology generation completed successfully")
             return result

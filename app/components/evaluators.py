@@ -7,7 +7,7 @@ from src.validation.validator import OntologyValidator
 
 from app.utils.logging import log
 from app.state import AppState
-from app.components.cache import get_from_cache, save_to_cache
+from app.components.cache import get_cache
 
 
 class EvaluationHandler:
@@ -17,7 +17,7 @@ class EvaluationHandler:
     ) -> Tuple[Optional[str], List[str]]:
         """Validate the generated ontology."""
         try:
-            validation_result = get_from_cache("validation_result")
+            validation_result = get_cache().get_from_cache("validation_result")
             if validation_result is None:
                 log("No cache found, running validation...")
                 client = AppState.get().client
@@ -33,7 +33,7 @@ class EvaluationHandler:
                     "clean_ontology": clean_ontology,
                     "error_log": error_log,
                 }
-                save_to_cache("validation_result", validation_result)
+                get_cache().save_to_cache("validation_result", validation_result)
             else:
                 clean_ontology = validation_result["clean_ontology"]
                 error_log = validation_result["error_log"]
@@ -52,7 +52,7 @@ class EvaluationHandler:
         """Run ABM simulation with the validated ontology extension."""
         try:
             client = AppState.get().client
-            discussion_result_with_error_message = get_from_cache(
+            discussion_result_with_error_message = get_cache().get_from_cache(
                 "discussion_result_with_error_message"
             )
             if discussion_result_with_error_message is None:
@@ -71,7 +71,7 @@ class EvaluationHandler:
                     "result": discussion_result,
                     "error_message": error_message,
                 }
-                save_to_cache(
+                get_cache().save_to_cache(
                     "discussion_result_with_error_message",
                     discussion_result_with_error_message,
                 )
@@ -93,7 +93,7 @@ class EvaluationHandler:
         """Compare generated ontology with reference."""
         try:
             client = AppState.get().client
-            comparison_result = get_from_cache("comparison_result")
+            comparison_result = get_cache().get_from_cache("comparison_result")
             if comparison_result is None:
                 log("No cache found, running comparison...")
                 comparison_result = compare(
@@ -102,7 +102,7 @@ class EvaluationHandler:
                     syntetic_extension=synthetic_extension,
                     reference=reference,
                 )
-                save_to_cache("comparison_result", comparison_result)
+                get_cache().save_to_cache("comparison_result", comparison_result)
 
             log("Ontology comparison completed")
             return comparison_result

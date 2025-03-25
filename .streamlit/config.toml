@@ -6,7 +6,3 @@ textColor = "#0B1F51"  # Dark blue text
 
 [server]
 enableStaticServing = true
-
-[app]
-use_cache = false
-cache_path = "data/cache.pkl"

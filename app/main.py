@@ -1,12 +1,37 @@
 import os
 import sys
+import toml
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.components.cache import Cache
 from app.utils.logging import log
 from app.state import AppState
+from app.components.cache import initialise_cache
 from app.views import data_input, processing, generation, evaluation
+
+
+def get_user_config():
+    """Get the user config from the user.toml file.
+
+    Returns:
+        dict: User configuration from .streamlit/user.toml file.
+        If file is not found or cannot be parsed, returns empty dict.
+    """
+    try:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), ".streamlit", "user.toml"
+        )
+
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                return toml.load(f)
+        else:
+            log(f"User config file not found at: {config_path}")
+            return {}
+
+    except Exception as e:
+        log(f"Error reading user config: {str(e)}")
+        return {}
 
 
 def show():
@@ -36,9 +61,6 @@ def show():
         """,
             unsafe_allow_html=True,
         )
-
-    # Initialize state if needed
-    state = AppState.get()
 
     # Data Input Section
     st.header("1. Data Input", anchor="data-input")
@@ -79,11 +101,13 @@ def main():
     )
     log("Streamlit page configuration set")
 
-    # Initialise state and cache
     AppState.initialize()
-    use_cache = st.get_option("app.use_cache")
-    cache_path = st.get_option("app.cache_path")
-    st.session_state.cache = Cache(use_cache=use_cache, cache_file=cache_path)
+    log("AppState initialised")
+
+    user_config = get_user_config()
+    use_cache = user_config.get("app", {}).get("use_cache", False)
+    cache_path = user_config.get("app", {}).get("cache_path", None)
+    initialise_cache(use_cache=use_cache, cache_path=cache_path)
     if use_cache:
         log(f"Cache initialised at: {cache_path}")
     else:
