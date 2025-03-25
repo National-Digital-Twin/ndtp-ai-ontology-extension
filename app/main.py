@@ -29,7 +29,7 @@ def show():
             <p style='margin: 5px 0;'><strong>Steps</strong></p>
             <p style='margin: 5px 0;'><a href='#data-input'>1. Data Input</a></p>
             <p style='margin: 5px 0;'><a href='#data-processing'>2. Data Processing</a></p>
-            <p style='margin: 5px 0;'><a href='#ontology-generation'>3. Ontology Generation</a></p>
+            <p style='margin: 5px 0;'><a href='#ontology-generation'>3. Extension Generation</a></p>
             <p style='margin: 5px 0;'><a href='#validation'>4. Validation</a></p>
         </div>
         """,
