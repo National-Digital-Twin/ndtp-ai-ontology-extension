@@ -38,22 +38,22 @@ class ProcessingHandler:
             return {}
 
     @staticmethod
-    def extract_triplets(df: pd.DataFrame, model: str) -> Dict:
-        """Extract triplets from CSV data."""
+    def extract_triples(df: pd.DataFrame, model: str) -> Dict:
+        """Extract triples from CSV data."""
         try:
             client = AppState.get().client
             tri_result = get_from_cache("tri_result")
             if tri_result is None:
-                log("No cache found, extracting triplets...")
+                log("No cache found, extracting triples...")
                 tri_result = analyze_tri(client, df, model)
                 save_to_cache("tri_result", tri_result)
 
-            AppState.get().processing_results["triplets"] = tri_result
-            log("Triplet extraction completed successfully")
+            AppState.get().processing_results["triples"] = tri_result
+            log("Triple extraction completed successfully")
             return tri_result
         except Exception as e:
-            log(f"Error in triplet extraction: {e}", "ERROR")
-            st.error(f"Triplet extraction failed: {e}")
+            log(f"Error in triple extraction: {e}", "ERROR")
+            st.error(f"Triple extraction failed: {e}")
             return {}
 
     @staticmethod
@@ -64,9 +64,7 @@ class ProcessingHandler:
             concepts_result = get_from_cache("concepts_result")
             if concepts_result is None:
                 log("No cache found, extracting concepts...")
-                concepts_result = extract_concepts_step(
-                    client, df, model
-                )
+                concepts_result = extract_concepts_step(client, df, model)
                 save_to_cache("concepts_result", concepts_result)
 
             AppState.get().processing_results["concepts"] = concepts_result
@@ -164,7 +162,7 @@ class ProcessingHandler:
                     df,
                     model,
                     state.processing_results.get("analysis", ""),
-                    state.processing_results.get("triplets", ""),
+                    state.processing_results.get("triples", ""),
                     state.processing_results.get("concepts", ""),
                     state.processing_results.get("usage", ""),
                     state.processing_results.get("classification", ""),

@@ -1,7 +1,7 @@
 import os
 import pickle
 
-USE_CACHE = False
+USE_CACHE = True
 CACHE_FILE = "data/cache.pkl"
 
 

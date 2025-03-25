@@ -233,7 +233,7 @@ The application is organised into 4 main sections:
 
 2. **Data Processing**
    - Run automated analysis on uploaded data
-   - Extract triplets and concepts
+   - Extract triples and concepts
    - View processing results in JSON format
 
 3. **Ontology Generation**

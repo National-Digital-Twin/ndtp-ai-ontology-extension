@@ -1,7 +1,7 @@
 import streamlit as st
 from typing import Tuple, List, Optional
 
-from src.eval.ABM import simulate_multi_agent_discussion
+from src.eval.abm import simulate_multi_agent_discussion
 from src.eval.comparison import compare
 from src.eval.owl_check import convert_and_check_ttl_ontology
 

@@ -6,7 +6,7 @@ from typing import Optional
 def generate_ontology_prompt(
     partial_csv_preview: pd.DataFrame,
     existing_analysis: str,
-    existing_triplets: str,
+    existing_triples: str,
     extracted_concepts: str,
     usage: str,
     classified_extensions: str,
@@ -14,7 +14,7 @@ def generate_ontology_prompt(
     extra_context: str,
     prompt: str,
     prompt2: str,
-    iteration: any,
+    previous_iteration: any,
     ontologist_feedback: str,
 ) -> str:
     """
@@ -23,7 +23,7 @@ def generate_ontology_prompt(
     Args:
         partial_csv_preview (pd.DataFrame): The partial CSV preview to use for the ontology extension.
         existing_analysis (str): The existing analysis of the data.
-        existing_triplets (str): The existing triplets of the data.
+        existing_triples (str): The existing triples of the data.
         extracted_concepts (str): The extracted concepts of the data.
         usage (str): The usage of the data.
         classified_extensions (str): The classified extensions of the data.
@@ -31,7 +31,7 @@ def generate_ontology_prompt(
         extra_context (str): The extra context to use for the ontology extension.
         prompt (str): The prompt to use for the ontology extension.
         prompt2 (str): The prompt to use for the ontology extension.
-        iteration (any): The iteration to use for the ontology extension.
+        previous_iteration (any): The previous iteration to use for the ontology extension.
         ontologist_feedback (str): The feedback to use for the ontology extension.
 
     Returns:
@@ -54,7 +54,7 @@ def generate_ontology_prompt(
 
     ### Previously Extracted Insights
     - Analysis: {existing_analysis}
-    - Triplets: {existing_triplets}
+    - Triples: {existing_triples}
     - Concepts: {extracted_concepts}
     - Usage: {usage}
     - Classified Extensions: {classified_extensions}
@@ -67,7 +67,7 @@ def generate_ontology_prompt(
     ### Previous Iteration and Feedback
     - Previous Iteration Output:
     ```
-    {"None" if iteration is None else iteration}
+    {"None" if previous_iteration is None else previous_iteration}
     ```
     - Ontologist Feedback:
     ```
@@ -86,7 +86,7 @@ def ontology_generator(
     df: pd.DataFrame,
     model: str,
     existing_analysis: str,
-    existing_triplets: str,
+    existing_triples: str,
     extracted_concepts: str,
     usage: str,
     classified_extensions: str,
@@ -107,7 +107,7 @@ def ontology_generator(
         df (pd.DataFrame): The data to use for the ontology extension.
         model (str): The model to use for the ontology extension.
         existing_analysis (str): The existing analysis of the data.
-        existing_triplets (str): The existing triplets of the data.
+        existing_triples (str): The existing triples of the data.
         extracted_concepts (str): The extracted concepts of the data.
         usage (str): The usage of the data.
         classified_extensions (str): The classified extensions of the data.
@@ -129,7 +129,7 @@ def ontology_generator(
     full_prompt = generate_ontology_prompt(
         partial_csv_preview=partial_csv_preview,
         existing_analysis=existing_analysis,
-        existing_triplets=existing_triplets,
+        existing_triples=existing_triples,
         extracted_concepts=extracted_concepts,
         usage=usage,
         classified_extensions=classified_extensions,
@@ -137,7 +137,7 @@ def ontology_generator(
         extra_context=extra_context,
         prompt=prompt,
         prompt2=prompt2,
-        iteration=previous_iteration,
+        previous_iteration=previous_iteration,
         ontologist_feedback=ontologist_feedback,
     )
 

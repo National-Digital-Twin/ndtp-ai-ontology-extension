@@ -6,7 +6,7 @@ It implements several key functionalities:
 
 1) CSV Analysis:
    - Analyzes CSV data to identify dataset themes, metrics, and characteristics
-   - Extracts BORO (Business Objects Reference Ontology) triplets from CSV data
+   - Extracts BORO (Business Objects Reference Ontology) triples from CSV data
 
 2) Concept Extraction:
    - Performs pseudo-NER (Named Entity Recognition) using ChatGPT to extract domain-relevant terms
@@ -21,7 +21,7 @@ It implements several key functionalities:
 Main functions:
 - analyze_csv_with_chatgpt(): Analyzes CSV data for themes and characteristics
 - pseudo_ner_phrase_extraction(): Extracts domain-relevant terms
-- extract_boro_triplets(): Analyzes CSV data using BORO principles
+- extract_boro_triples(): Analyzes CSV data using BORO principles
 - gather_usage_patterns_and_subtypes(): Identifies usage patterns and subtypes
 - classify_extension_type(): Classifies concepts according to ontology extension types
 
@@ -34,13 +34,13 @@ Usage:
     df = pd.read_csv("some_dataset.csv")
     
     # Analyze CSV data
-    domain_theme = analyze_step(df, "gpt-3.5-turbo")
+    domain_theme = analyze_step(client, df, "gpt-4o-mini")
     
-    # Extract BORO triplets
-    triplets = analyze_tri(df, "gpt-3.5-turbo")
+    # Extract BORO triples
+    triples = analyze_tri(client, df, "gpt-4o-mini")
     
     # Extract concepts
-    concepts = extract_concepts_step(df, "gpt-3.5-turbo")
+    concepts = extract_concepts_step(client, df, "gpt-4o-mini")
 """
 
 import json
@@ -96,7 +96,7 @@ def pseudo_ner_phrase_extraction(client: OpenAI, text: str, model: str) -> str:
     return resp.choices[0].message.content.strip()
 
 
-def extract_boro_triplets(client: OpenAI, df: pd.DataFrame, model: str) -> str:
+def extract_boro_triples(client: OpenAI, df: pd.DataFrame, model: str) -> str:
     """
     Use BORO (Business Objects Reference Ontology) principles to analyze the CSV data.
     Extract (head, relation, tail) triples clearly distinguishing:
@@ -104,7 +104,7 @@ def extract_boro_triplets(client: OpenAI, df: pd.DataFrame, model: str) -> str:
         - States or bounding states (temporal or condition-based entities)
         - Relationships or dispositions connecting entities
 
-    Returns a JSON containing extracted triplets along with BORO-aligned reasoning.
+    Returns a JSON containing extracted triples along with BORO-aligned reasoning.
     """
 
     partial_csv_preview = df.head(10)
@@ -125,8 +125,8 @@ def extract_boro_triplets(client: OpenAI, df: pd.DataFrame, model: str) -> str:
 
     Return your analysis as a JSON with the following structure:
     {{
-        "triplets": [{{"head": "...", "relation": "...", "tail": "..."}}],
-        "boro_reasoning": "Explain clearly how each triplet aligns with BORO's classification of enduring entities, states, or relationships."
+        "triples": [{{"head": "...", "relation": "...", "tail": "..."}}],
+        "boro_reasoning": "Explain clearly how each triple aligns with BORO's classification of enduring entities, states, or relationships."
     }}
     """
 
@@ -215,7 +215,7 @@ def classify_extension_type(client: OpenAI, concept: str, model: str) -> str:
 
 def analyze_step(client: OpenAI, csv_df: pd.DataFrame, model: Any) -> str:
     if csv_df is not None and not csv_df.empty:
-        extract_boro_triplets(client=client, df=csv_df, model=model)
+        extract_boro_triples(client=client, df=csv_df, model=model)
         domain_theme = analyze_csv_with_chatgpt(client=client, df=csv_df, model=model)
         return domain_theme
     return "UnknownTheme"
@@ -223,7 +223,7 @@ def analyze_step(client: OpenAI, csv_df: pd.DataFrame, model: Any) -> str:
 
 def analyze_tri(client: OpenAI, csv_df: pd.DataFrame, model: Any) -> str:
     if csv_df is not None and not csv_df.empty:
-        tri = extract_boro_triplets(client=client, df=csv_df, model=model)
+        tri = extract_boro_triples(client=client, df=csv_df, model=model)
         return tri
     return "UnknownTheme"
 

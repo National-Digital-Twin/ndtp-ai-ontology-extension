@@ -18,31 +18,32 @@ Usage (from any directory):
 """
 
 import os
+from openai import OpenAI
 from src.ingestion.ontology import process_ttl
 from src.ingestion.extract import process_data
 
-# Construct absolute paths based on the script location
+BASE_ONTOLOGY_PATH = "data/ontologies/ies-common.ttl"
+TARGET_ENTITIES_JSON = "data/ontologies/ontology_entities.json"
+CSV_DATA = "data/raw/address_base_plus_john_2023-10-06_122302.csv"
+
+CANDIDATE_ENTITIES_JSON = "results/candidate_entities_with_reference.json"  # Step 2
+CANDIDATE_ENTITIES_CLASSIFIED_JSON = (
+    "results/candidate_entities_classified.json"  # Step 3
+)
+
+
+# Initialise OpenAI client (make sure API key is set in environment variables)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, ".."))
 
-# Absolute path for the TTL file (reference ontology)
-ttl_path = os.path.join(project_root, "data", "ontologies", "ies-common.ttl")
-# Absolute path where the extracted ontology JSON will be saved
-ontology_json_path = os.path.join(
-    project_root, "data", "ontologies", "ontology_entities.json"
-)
-# Absolute path for the CSV file with candidate data
-csv_path = os.path.join(
-    project_root, "data", "raw", "address_base_plus_john_2023-10-06_122302.csv"
-)
-# Absolute path for the output candidate entities JSON file (step 2)
-output_path_step2 = os.path.join(
-    project_root, "results", "candidate_entities_with_reference.json"
-)
-# Absolute path for the output candidate entities classification JSON file (step 3)
-output_path_step3 = os.path.join(
-    project_root, "results", "candidate_entities_classified.json"
-)
+ttl_path = os.path.join(project_root, BASE_ONTOLOGY_PATH)
+ontology_json_path = os.path.join(project_root, TARGET_ENTITIES_JSON)
+csv_path = os.path.join(project_root, CSV_DATA)
+
+output_path_step2 = os.path.join(project_root, CANDIDATE_ENTITIES_JSON)
+output_path_step3 = os.path.join(project_root, CANDIDATE_ENTITIES_CLASSIFIED_JSON)
 
 # Step 1: Extract the reference ontology from the TTL file.
 ontology_result = process_ttl(
@@ -53,6 +54,7 @@ print(ontology_result)
 
 # Step 2: Extract candidate entities from the CSV file using only ChatGPT.
 # results_step2 = process_data(
+#     client=client,
 #     file_path=csv_path,
 #     output_path=output_path_step2,
 #     method="chatgpt",                      # Use only ChatGPT for extraction.
@@ -67,6 +69,7 @@ print(ontology_result)
 
 # Step 3: Extract candidate entities with classification from the CSV file using ChatGPT.
 results_step3 = process_data(
+    client=client,
     file_path=csv_path,
     output_path=output_path_step3,
     method="chatgpt",  # Use only ChatGPT for extraction.

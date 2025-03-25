@@ -16,7 +16,7 @@ def show():
 
     processing_keys_required = [
         "analysis",
-        "triplets",
+        "triples",
         "concepts",
         "usage",
         "classification",

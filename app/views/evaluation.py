@@ -32,8 +32,9 @@ def show():
             state.status["evaluation"] = False
         state.error_log = error_log
 
+    if state.error_log:
         with st.expander("Error Log"):
-            st.code("\n".join(error_log), language="text")
+            st.code("\n".join(state.error_log), language="text")
 
     if state.clean_ontology:
         with st.expander("Validated Ontology Extension", expanded=True):

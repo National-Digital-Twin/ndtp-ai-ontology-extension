@@ -26,15 +26,15 @@ def show():
             with st.expander("Analysis Results", expanded=True):
                 st.json(state.processing_results["analysis"])
 
-        if st.button("Extract Triplets", use_container_width=True, type="primary"):
-            with st.spinner("Extracting triplets..."):
-                triplets_result = ProcessingHandler.extract_triplets(df, model)
-                if triplets_result:
-                    st.success("Triplets extracted!")
-                    state.processing_results["triplets"] = triplets_result
-        if state.processing_results.get("triplets") is not None:
-            with st.expander("Triplet Results", expanded=True):
-                st.json(state.processing_results["triplets"])
+        if st.button("Extract Triples", use_container_width=True, type="primary"):
+            with st.spinner("Extracting triples..."):
+                triples_result = ProcessingHandler.extract_triples(df, model)
+                if triples_result:
+                    st.success("Triples extracted!")
+                    state.processing_results["triples"] = triples_result
+        if state.processing_results.get("triples") is not None:
+            with st.expander("Triple Results", expanded=True):
+                st.json(state.processing_results["triples"])
 
         if st.button("Extract Concepts", use_container_width=True, type="primary"):
             with st.spinner("Extracting concepts..."):
