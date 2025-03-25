@@ -26,7 +26,7 @@ class ProcessingHandler:
             analysis_result = get_from_cache("analysis_result")
             if analysis_result is None:
                 log("No cache found, analyzing CSV...")
-                analysis_result = analyze_step(client=client, df=df, model=model)
+                analysis_result = analyze_step(client, df, model)
                 save_to_cache("analysis_result", analysis_result)
 
             AppState.get().processing_results["analysis"] = analysis_result
@@ -45,7 +45,7 @@ class ProcessingHandler:
             tri_result = get_from_cache("tri_result")
             if tri_result is None:
                 log("No cache found, extracting triplets...")
-                tri_result = analyze_tri(client=client, df=df, model=model)
+                tri_result = analyze_tri(client, df, model)
                 save_to_cache("tri_result", tri_result)
 
             AppState.get().processing_results["triplets"] = tri_result
@@ -65,7 +65,7 @@ class ProcessingHandler:
             if concepts_result is None:
                 log("No cache found, extracting concepts...")
                 concepts_result = extract_concepts_step(
-                    client=client, df=df, model=model
+                    client, df, model
                 )
                 save_to_cache("concepts_result", concepts_result)
 
@@ -96,10 +96,10 @@ class ProcessingHandler:
             if usage_result is None:
                 log("No cache found, gathering usage patterns...")
                 usage_result = gather_usage_step(
-                    client=state.client,
-                    concepts=concepts,
-                    domain_theme=state.processing_results["analysis"],
-                    model=model,
+                    state.client,
+                    concepts,
+                    state.processing_results["analysis"],
+                    model,
                 )
                 save_to_cache("usage_result", usage_result)
 
@@ -124,9 +124,9 @@ class ProcessingHandler:
             if classification_result is None:
                 log("No cache found, classifying extensions...")
                 classification_result = classify_extensions(
-                    client=state.client,
-                    usage_info=state.processing_results["usage"],
-                    model=model,
+                    state.client,
+                    state.processing_results["usage"],
+                    model,
                 )
                 save_to_cache("classification_result", classification_result)
             classification_result = [json.loads(item) for item in classification_result]
@@ -160,20 +160,18 @@ class ProcessingHandler:
             if result is None:
                 log("No cache found, generating ontology...")
                 result = ontology_generator(
-                    client=state.client,
-                    df=df,
-                    model=model,
-                    existing_analysis=state.processing_results.get("analysis", ""),
-                    existing_triplets=state.processing_results.get("triplets", ""),
-                    extracted_concepts=state.processing_results.get("concepts", ""),
-                    usage=state.processing_results.get("usage", ""),
-                    classified_extensions=state.processing_results.get(
-                        "classification", ""
-                    ),
-                    base_ontology=state.common_snippet or "",
-                    extra_context=background,
-                    prompt=prompt,
-                    prompt2=guidelines,
+                    state.client,
+                    df,
+                    model,
+                    state.processing_results.get("analysis", ""),
+                    state.processing_results.get("triplets", ""),
+                    state.processing_results.get("concepts", ""),
+                    state.processing_results.get("usage", ""),
+                    state.processing_results.get("classification", ""),
+                    state.common_snippet or "",
+                    background,
+                    prompt,
+                    guidelines,
                     ontologist_feedback=ontology_feedback,
                     chunk_start=state.chunk_start,
                     chunk_size=state.chunk_size,
