@@ -11,3 +11,5 @@ plotly>=5.0.0
 streamlit>=1.22.0
 owlrl~=7.1.3
 pyshacl~=0.30.1
+jsonschema~=4.23.0
+git+https://github.com/Telicent-io/shacl-tool.git

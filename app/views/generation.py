@@ -69,7 +69,11 @@ def show():
         )
 
     # Generation Actions
-    if st.button("Generate Extension", use_container_width=True, type="primary"):
+    col_buttons = st.columns([3, 1])
+
+    if col_buttons[0].button(
+        "Generate Extension", use_container_width=True, type="primary"
+    ):
         with st.spinner("Generating ontology extension..."):
             result = ProcessingHandler.generate_ontology(
                 df=state.csv_data,
@@ -90,6 +94,12 @@ def show():
             }
         )
         state.current_iteration += 1
+
+    if col_buttons[1].button("Reset", use_container_width=True):
+        state.new_output = None
+        state.iteration_history = []
+        state.current_iteration = 0
+        st.rerun()
 
     if state.new_output:
         suffix = (
