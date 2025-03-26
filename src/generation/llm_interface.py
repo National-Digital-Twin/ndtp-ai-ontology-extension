@@ -5,15 +5,8 @@ This module provides functions for interacting with LLMs to generate, refine,
 and compare ontology snippets in Turtle format.
 """
 
-import os
 import json
 from openai import OpenAI
-
-# Initialise an OpenAI client
-api_key = os.environ.get("OPENAI_API_KEY")
-if not api_key:
-    raise ValueError("OPENAI_API_KEY environment variable not set")
-client = OpenAI(api_key=api_key)
 
 
 def build_prompt_for_generation(
@@ -51,11 +44,14 @@ def build_prompt_for_generation(
     return prompt
 
 
-def generate_ttl_snippet(prompt_text: str, model: str = "o3-mini") -> str:
+def generate_ttl_snippet(
+    client: OpenAI, prompt_text: str, model: str = "o3-mini"
+) -> str:
     """
     Calls an LLM to produce a Turtle snippet based on the provided prompt.
 
     Args:
+        client: The OpenAI client
         prompt_text: The formatted prompt text
         model: The OpenAI model to use (default: "o3-mini")
 
@@ -76,12 +72,16 @@ def generate_ttl_snippet(prompt_text: str, model: str = "o3-mini") -> str:
 
 
 def refine_instructions(
-    error_summary: str, original_instructions: str, model: str = "o3-mini"
+    client: OpenAI,
+    error_summary: str,
+    original_instructions: str,
+    model: str = "o3-mini",
 ) -> str:
     """
     Refine ontology creation instructions based on error feedback.
 
     Args:
+        client: The OpenAI client
         error_summary: A summary of errors or issues to address
         original_instructions: The current instructions to refine
         model: The OpenAI model to use (default: "o3-mini")
@@ -121,13 +121,14 @@ Return only the refined instructions, with no additional commentary.
 
 
 def compare_snippets(
-    generated_ttl: str, reference_ttl: str, model: str = "o3-mini"
+    client: OpenAI, generated_ttl: str, reference_ttl: str, model: str = "o3-mini"
 ) -> dict:
     """
     Use an LLM to compare generated TTL with a reference TTL, focusing on
     entity classes and state classes.
 
     Args:
+        client: The OpenAI client
         generated_ttl: The generated Turtle snippet
         reference_ttl: The reference Turtle snippet to compare against
         model: The OpenAI model to use (default: "o3-mini")

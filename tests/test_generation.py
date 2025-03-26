@@ -1,14 +1,19 @@
 """
 Tests for the generation module components.
 
-This module contains tests for the LLM interface, comparison, and iteration
-management functionality in the generation module.
+This module contains tests for:
+- generator.py: Ontology generation functionality
+- llm_interface.py: LLM interaction and comparison functionality
+- iteration.py: Iteration management functionality
 """
 
 import json
+import pandas as pd
 import pytest
 from unittest.mock import patch, MagicMock
+from openai import OpenAI
 
+from src.generation.generator import generate_ontology_prompt, ontology_generator
 from src.generation.llm_interface import (
     build_prompt_for_generation,
     generate_ttl_snippet,
@@ -22,6 +27,132 @@ from src.generation.iteration import (
     save_checkpoint,
     get_iteration_history,
 )
+
+
+# ===== Fixtures =====
+
+
+@pytest.fixture
+def sample_dataframe():
+    """Create a sample DataFrame for testing."""
+    return pd.DataFrame(
+        {
+            "entity": ["Building A", "Building B"],
+            "type": ["Office", "Residential"],
+            "floors": [10, 5],
+        }
+    )
+
+
+@pytest.fixture
+def sample_inputs():
+    """Create sample input data for testing."""
+    return {
+        "existing_analysis": "Buildings analysis",
+        "existing_triples": "Building hasType Office",
+        "extracted_concepts": "Building, Office, Residential",
+        "usage": "Building management",
+        "classified_extensions": "BuildingType classification",
+        "base_ontology": "@prefix ex: <http://example.org/> .",
+        "extra_context": "Additional building context",
+        "prompt": "Generate ontology",
+        "prompt2": "for buildings",
+        "ontologist_feedback": None,
+        "previous_iteration": None,
+    }
+
+
+# ===== Generator Tests =====
+
+
+class TestGenerator:
+    def setup_method(self):
+        """Set up test environment before each test method."""
+        # Create mock OpenAI client
+        self.mock_client = MagicMock(spec=OpenAI)
+        self.mock_chat = MagicMock()
+        self.mock_client.chat = self.mock_chat
+
+    def test_generate_ontology_prompt(self, sample_dataframe, sample_inputs):
+        """Test generating the ontology prompt."""
+        result = generate_ontology_prompt(
+            partial_csv_preview=sample_dataframe, **sample_inputs
+        )
+
+        # Check that the prompt contains all required sections
+        assert "### Role" in result
+        assert "### Task" in result
+        assert "### Data Sample" in result
+        assert "### Previously Extracted Insights" in result
+        assert "### Base Ontology" in result
+        assert "### Instructions for Current Iteration" in result
+
+        # Check that input data is included in the prompt
+        assert sample_inputs["existing_analysis"] in result
+        assert sample_inputs["base_ontology"] in result
+        assert str(sample_dataframe) in result
+
+    def test_generate_ontology_prompt_with_feedback(
+        self, sample_dataframe, sample_inputs
+    ):
+        """Test generating the ontology prompt with feedback."""
+        sample_inputs["ontologist_feedback"] = "Improve building classifications"
+        sample_inputs["previous_iteration"] = "Previous ontology version"
+
+        result = generate_ontology_prompt(
+            partial_csv_preview=sample_dataframe, **sample_inputs
+        )
+
+        # Check that feedback is included
+        assert "Improve building classifications" in result
+        assert "Previous ontology version" in result
+
+    def test_ontology_generator(self, sample_dataframe, sample_inputs):
+        """Test the main ontology generator function."""
+        # Mock the OpenAI API response
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[
+            0
+        ].message.content = "@prefix building: <http://example.org/building#> ."
+        self.mock_chat.completions.create.return_value = mock_response
+
+        result = ontology_generator(
+            client=self.mock_client,
+            df=sample_dataframe,
+            model="gpt-4o",
+            **sample_inputs
+        )
+
+        # Check that the API was called correctly
+        self.mock_chat.completions.create.assert_called_once()
+        call_args = self.mock_chat.completions.create.call_args[1]
+        assert call_args["model"] == "gpt-4o"
+        assert isinstance(call_args["messages"], list)
+        assert call_args["messages"][0]["role"] == "user"
+
+        # Check the result
+        assert result == "@prefix building: <http://example.org/building#> ."
+
+    @patch("pandas.DataFrame")
+    def test_ontology_generator_empty_dataframe(self, mock_df, sample_inputs):
+        """Test ontology generator with an empty DataFrame."""
+        mock_df.empty = True
+        mock_df.iloc = MagicMock(return_value=pd.DataFrame())
+
+        # Configure the mock to return a string value
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.content = "Test ontology content"
+        self.mock_chat.completions.create.return_value = mock_response
+
+        result = ontology_generator(
+            client=self.mock_client, df=mock_df, model="gpt-4o", **sample_inputs
+        )
+
+        # The function should still work with empty data
+        assert isinstance(result, str)
+        self.mock_chat.completions.create.assert_called_once()
 
 
 # ===== LLM Interface Tests =====
@@ -52,42 +183,42 @@ def test_build_prompt_for_generation():
     assert "Additional feedback" in prompt_with_feedback
 
 
-@patch("src.generation.llm_interface.client")
-def test_generate_ttl_snippet(mock_client):
+def test_generate_ttl_snippet():
     """Test TTL snippet generation with mocked OpenAI client."""
     # Setup mock
+    mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Generated TTL content"
     mock_client.chat.completions.create.return_value = mock_response
 
     # Call function
-    result = generate_ttl_snippet("Test prompt")
+    result = generate_ttl_snippet(mock_client, "Test prompt")
 
     # Verify
     assert result == "Generated TTL content"
     mock_client.chat.completions.create.assert_called_once()
 
-    # No need to test API key missing error since that's now handled at module level
 
-
-@patch("src.generation.llm_interface.client")
-def test_refine_instructions(mock_client):
+def test_refine_instructions():
     """Test instruction refinement with mocked OpenAI client."""
     # Setup mock
+    mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = "Refined instructions"
     mock_client.chat.completions.create.return_value = mock_response
 
     # Test with error summary
-    result = refine_instructions("Missing entities", "Original instructions")
+    result = refine_instructions(
+        mock_client, "Missing entities", "Original instructions"
+    )
     assert result == "Refined instructions"
     mock_client.chat.completions.create.assert_called_once()
 
     # Test with "No errors" - should return original instructions
     mock_client.chat.completions.create.reset_mock()
-    result = refine_instructions("No errors.", "Original instructions")
+    result = refine_instructions(mock_client, "No errors.", "Original instructions")
     assert result == "Original instructions"
     mock_client.chat.completions.create.assert_not_called()
 
@@ -95,10 +226,10 @@ def test_refine_instructions(mock_client):
 # ===== Comparison Tests =====
 
 
-@patch("src.generation.llm_interface.client")
-def test_compare_snippets(mock_client):
+def test_compare_snippets():
     """Test snippet comparison with mocked OpenAI client."""
     # Setup mock
+    mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
     mock_response.choices[0].message.content = json.dumps(
@@ -112,7 +243,7 @@ def test_compare_snippets(mock_client):
     mock_client.chat.completions.create.return_value = mock_response
 
     # Call function
-    result = compare_snippets("Generated TTL", "Reference TTL")
+    result = compare_snippets(mock_client, "Generated TTL", "Reference TTL")
 
     # Verify
     assert "entities_missing_in_A" in result
@@ -123,7 +254,7 @@ def test_compare_snippets(mock_client):
 
     # Test invalid JSON response
     mock_response.choices[0].message.content = "Not valid JSON"
-    result = compare_snippets("Generated TTL", "Reference TTL")
+    result = compare_snippets(mock_client, "Generated TTL", "Reference TTL")
     assert "error" in result
     assert "raw_output" in result
 

@@ -11,8 +11,8 @@ import csv
 import os
 import sys
 from pathlib import Path
+from openai import OpenAI
 
-# Add the project root to the Python path to allow importing from src
 script_dir = Path(__file__).resolve().parent
 project_root = script_dir.parent
 sys.path.append(str(project_root))
@@ -129,13 +129,11 @@ def main():
     """
     args = parse_arguments()
 
-    # Check if OPENAI_API_KEY is set
     if not os.environ.get("OPENAI_API_KEY"):
         print("Error: OPENAI_API_KEY environment variable is not set.")
         print("Please set it using: export OPENAI_API_KEY='your-api-key'")
         sys.exit(1)
 
-    # Convert string paths to Path objects
     common_snippet_path = Path(args.common_snippet)
     csv_file_path = Path(args.csv_file)
     reference_snippet_path = Path(args.reference_snippet)
@@ -143,10 +141,8 @@ def main():
     checkpoint_file_path = Path(args.checkpoint)
     output_path = Path(args.output)
 
-    # Create output directory if it doesn't exist
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Load data
     print(f"Loading common snippet from {common_snippet_path}")
     common_snippet = load_common_snippet(common_snippet_path)
 
@@ -160,7 +156,6 @@ def main():
     with open(instructions_path, "r", encoding="utf-8") as f:
         initial_instructions = f.read()
 
-    # Load checkpoint
     print(f"Loading checkpoint from {checkpoint_file_path}")
     state = load_checkpoint(
         checkpoint_file_path, default_instructions=initial_instructions
@@ -177,6 +172,11 @@ def main():
     if user_input == "stop":
         print("Exiting.")
         sys.exit(0)
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable not set")
+    client = OpenAI(api_key=api_key)
 
     # Iterative refinement loop
     while iteration < args.max_iterations:
@@ -199,7 +199,7 @@ def main():
         # Compare with reference snippet
         print("\nComparing generated snippet with reference snippet...")
         comparison_raw = compare_snippets(
-            generated_snippet, reference_snippet, model=args.model
+            client, generated_snippet, reference_snippet, model=args.model
         )
         comparison_result = interpret_comparison_result(comparison_raw)
 
@@ -262,7 +262,7 @@ def main():
         # Refine instructions
         print("\nRefining instructions based on error summary...")
         refined_instructions = refine_instructions(
-            error_summary, current_instructions, model=args.model
+            client, error_summary, current_instructions, model=args.model
         )
         print("\n--- Refined Instructions ---")
         print(

@@ -58,10 +58,6 @@ import spacy
 from rapidfuzz import fuzz
 from openai import OpenAI
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-if client.api_key is None:
-    print("Warning: OPENAI_API_KEY is not set. ChatGPT queries will be skipped.")
-
 from .helpers import read_data
 
 # Attempt to load the spaCy model; if unavailable, skip spaCy extraction.
@@ -89,11 +85,12 @@ def extract_entities_spacy(text):
 
 
 def extract_entities_chatgpt(
-    column_name,
-    sample_values,
-    candidate_type="entity",
-    chatgpt_model="gpt-4o-mini",
-    classify_candidates=False,
+    client: OpenAI,
+    column_name: str,
+    sample_values: list[str],
+    candidate_type: str = "entity",
+    chatgpt_model: str = "gpt-4o-mini",
+    classify_candidates: bool = False,
 ):
     """
     Build a prompt for ChatGPT based on the column name and sample values.
@@ -104,8 +101,19 @@ def extract_entities_chatgpt(
     and "classification". Otherwise, a simple JSON array of term strings is expected.
 
     Returns a sorted list of candidate terms (or objects if classification is active).
+
+    Args:
+        client: OpenAI client instance
+        column_name: Name of the column to extract entities from
+        sample_values: List of sample values from the column
+        candidate_type: Type of candidate term to extract (default "entity")
+        chatgpt_model: ChatGPT model to use (default "gpt-4o-mini")
+        classify_candidates: Whether to classify candidates (default False)
+
+    Returns:
+        Sorted list of candidate terms or objects with classification
     """
-    if not client.api_key:
+    if not client or not client.api_key:
         print(
             f"Warning: ChatGPT extraction skipped for column '{column_name}' because OPENAI_API_KEY is not set."
         )
@@ -198,14 +206,15 @@ def get_top_n_rapidfuzz(candidate, constraints_list, top_n=20):
 
 
 def fuzzy_matches_chatgpt(
-    candidate_list,
-    constraints_list,
-    threshold=80,
-    chunk_size=200,
-    top_n=20,
-    candidate_type="entity",
-    chatgpt_model="gpt-4o-mini",
-    classify_candidates=False,
+    client: OpenAI,
+    candidate_list: list[str],
+    constraints_list: list[str],
+    threshold: int = 80,
+    chunk_size: int = 200,
+    top_n: int = 20,
+    candidate_type: str = "entity",
+    chatgpt_model: str = "gpt-4o-mini",
+    classify_candidates: bool = False,
 ):
     """
     Use a HYBRID approach to ChatGPT fuzzy matching, combining RapidFuzz pre-filtering
@@ -219,8 +228,22 @@ def fuzzy_matches_chatgpt(
        If classify_candidates is True, instruct ChatGPT to return a JSON array of objects
        with "term" and "classification"; otherwise, return a JSON array of strings.
     5) Return a sorted, unique list of final matched ontology terms.
+
+    Args:
+        client: OpenAI client instance
+        candidate_list: List of candidate terms
+        constraints_list: List of ontology terms
+        threshold: RapidFuzz similarity threshold (default 80)
+        chunk_size: Number of terms per ChatGPT prompt (default 200)
+        top_n: Number of RapidFuzz matches to consider (default 20)
+        candidate_type: Type of candidate term to extract (default "entity")
+        chatgpt_model: ChatGPT model to use (default "gpt-4o-mini")
+        classify_candidates: Whether to classify candidates (default False)
+
+    Returns:
+        Sorted list of final matched ontology terms
     """
-    if not client.api_key:
+    if not client or not client.api_key:
         print(
             "Warning: OPENAI_API_KEY is not set. Cannot perform fuzzy matching via ChatGPT."
         )
@@ -317,7 +340,11 @@ def fuzzy_matches_chatgpt(
         return sorted(all_matches)
 
 
-def verify_and_fix_column_structure(column_data, chatgpt_model="gpt-4o-mini"):
+def verify_and_fix_column_structure(
+    client: OpenAI,
+    column_data: dict,
+    chatgpt_model: str = "gpt-4o-mini",
+):
     """
     Verify that a column's output exactly matches the expected structure:
 
@@ -336,7 +363,13 @@ def verify_and_fix_column_structure(column_data, chatgpt_model="gpt-4o-mini"):
     If the structure is not exactly as expected, this function sends a query to ChatGPT
     instructing it to transform the given JSON to match the required structure.
 
-    Returns the fixed JSON object.
+    Args:
+        client: OpenAI client instance
+        column_data: Dictionary containing the column's output
+        chatgpt_model: ChatGPT model to use (default "gpt-4o-mini")
+
+    Returns:
+        Fixed JSON object
     """
     expected_template = (
         '{"sample_values": [ ... ], "entities": {"spacy": [ ... ], "chatgpt": [ ... ], '
@@ -392,18 +425,19 @@ def verify_and_fix_column_structure(column_data, chatgpt_model="gpt-4o-mini"):
 
 
 def process_data(
-    file_path,
-    output_path=None,
-    method="both",
-    ontology_constraints_path=None,
-    fuzzy_threshold=80,
-    fuzzy_method="rapidfuzz",
-    chunk_size=200,
-    top_n=20,
-    chatgpt_model="gpt-4o-mini",
-    candidate_type="entity",
-    classify_candidates=False,
-    verify_structure=False,
+    client: OpenAI,
+    file_path: str,
+    output_path: str | None = None,
+    method: str = "both",
+    ontology_constraints_path: str | None = None,
+    fuzzy_threshold: int = 80,
+    fuzzy_method: str = "rapidfuzz",
+    chunk_size: int = 200,
+    top_n: int = 20,
+    chatgpt_model: str = "gpt-4o-mini",
+    candidate_type: str = "entity",
+    classify_candidates: bool = False,
+    verify_structure: bool = False,
 ):
     """
     Process a tabular data file (CSV or JSON) to extract candidate ontology terms
@@ -427,7 +461,23 @@ def process_data(
     If verify_structure is True, each column's output is verified and, if necessary,
     fixed via a secondary ChatGPT query to ensure the structure matches exactly.
 
-    Returns a dictionary with the extraction results.
+    Args:
+        client: OpenAI client instance
+        file_path: Path to the input data file
+        output_path: Path to save the output JSON file (optional)
+        method: Extraction method ("spacy", "chatgpt", or "both")
+        ontology_constraints_path: Path to the ontology constraints file (optional)
+        fuzzy_threshold: RapidFuzz similarity threshold (default 80)
+        fuzzy_method: Matching method ("rapidfuzz" or "chatgpt")
+        chunk_size: Number of terms per ChatGPT prompt (default 200)
+        top_n: Number of RapidFuzz matches to consider (default 20)
+        chatgpt_model: ChatGPT model to use (default "gpt-4o-mini")
+        candidate_type: Type of candidate term to extract (default "entity")
+        classify_candidates: Whether to classify candidates (default False)
+        verify_structure: Whether to verify and fix the column structure (default False)
+
+    Returns:
+        Dictionary with the extraction results
     """
     data = read_data(file_path)
     if not isinstance(data, pd.DataFrame):
@@ -457,6 +507,7 @@ def process_data(
 
             if method in ["both", "chatgpt"]:
                 chatgpt_result = extract_entities_chatgpt(
+                    client,
                     col,
                     sample_vals,
                     candidate_type=candidate_type,
@@ -479,6 +530,7 @@ def process_data(
                     )
                 elif fuzzy_method == "chatgpt":
                     matches["spacy"] = fuzzy_matches_chatgpt(
+                        client,
                         result["spacy"],
                         constraints_list,
                         threshold=fuzzy_threshold,
@@ -489,6 +541,7 @@ def process_data(
                         classify_candidates=classify_candidates,
                     )
                     matches["chatgpt"] = fuzzy_matches_chatgpt(
+                        client,
                         result["chatgpt"],
                         constraints_list,
                         threshold=fuzzy_threshold,
@@ -502,7 +555,9 @@ def process_data(
             column_output = {"sample_values": sample_vals, "entities": result}
             if verify_structure:
                 column_output = verify_and_fix_column_structure(
-                    column_output, chatgpt_model=chatgpt_model
+                    client,
+                    column_output,
+                    chatgpt_model=chatgpt_model,
                 )
             extraction_results[col] = column_output
 
