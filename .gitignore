@@ -1,0 +1,9 @@
+data/
+results/
+__pycache__/
+.spyproject/
+.DS_Store
+.env
+.pytest_cache/
+.idea/
+.streamlit/secrets.toml

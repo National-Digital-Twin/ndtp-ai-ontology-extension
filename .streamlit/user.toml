@@ -1,0 +1,3 @@
+[app]
+use_cache = false
+cache_path = "data/cache.pkl"
