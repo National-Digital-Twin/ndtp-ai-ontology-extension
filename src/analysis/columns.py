@@ -1,14 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# © Crown Copyright 2025. This work has been developed by the National Digital Twin Programme and is legally attributed to the Department for Business and Trade (UK) as the governing entity.
+
 import pandas as pd
 import re
 import numpy as np
 from sklearn.manifold import TSNE
 import plotly.express as px
 
-from ..ingestion.embeddings import (
-    search_vector_store,
-    embed_texts,
-    add_to_vector_store,
-)
+from ..ingestion.embeddings import search_vector_store
 
 
 def generate_column_descriptions(df):

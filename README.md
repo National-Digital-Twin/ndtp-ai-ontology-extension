@@ -1,347 +1,106 @@
-# AI Ontology Extension
+# AI Ontology Extension Generator
 
-An AI-assisted ontology development workflow that ingests data from various sources and uses a combination of data profiling, NER, and AI suggestions to extract candidate ontology entities.
+**Repository:** `ndtp-ai-ontology-extension`  
+**Description:** An AI-assisted ontology development workflow that enables automated generation and extension of ontologies through an intuitive web interface.  
+**SPDX-License-Identifier:** `Apache-2.0 AND OGL-UK-3.0`  
 
-## Table of Contents
+## Overview  
+This repository provides an open-source, AI-powered tool for ontology development and extension. It enables the automatic generation and extension of ontologies from various data sources using a human-in-the-loop workflow.
 
-- [Purpose and Overview](#purpose-and-overview)
-- [Installation and Setup](#installation-and-setup)
-- [Ontology Extraction and Matching](#ontology-extraction-and-matching)
-  - [Ingestion and Entity Extraction](#ingestion-and-entity-extraction)
-  - [Fuzzy Matching Options](#fuzzy-matching-options)
-  - [Ontology Constraints File](#ontology-constraints-file)
-  - [Example Usage](#example-usage)
-  - [Output Folder](#output-folder)
-  - [Next Steps](#next-steps)
-- [Ontology Generation](#ontology-generation)
-  - [LLM-Based Generation](#llm-based-generation)
-  - [Iterative Refinement](#iterative-refinement)
-  - [Generate Ontology Usage](#generate-ontology-usage)
-- [Streamlit Application for Generation](#streamlit-application-for-generation)
-  - [Features](#features)
-  - [Running the App](#running-the-app)
-- [Analysis and Visualization](#analysis-and-visualization)
-  - [Embedding Analysis](#embedding-analysis)
-  - [Namespace Analysis](#namespace-analysis)
-- [Folder Structure](#folder-structure)
-- [Security](#security)
-- [License](#license)
-- [Contributing](#contributing)
-- [Acknowledgements](#acknowledgements)
+The tool combines data profiling, Named Entity Recognition (NER), and Large Language Models to extract, match, and generate ontology entities through a user-friendly Streamlit interface.
 
-## Purpose and Overview
+## Prerequisites  
+Before using this repository, ensure you have the following dependencies installed:  
+- **Required Tooling:** Python 3.8+
+- **Pipeline Requirements:** OpenAI API access
+- **System Requirements:** 4GB RAM minimum, 8GB recommended
 
-This project provides an AI-assisted ontology development workflow. It ingests data from various sources 
-(e.g., CSV, JSON, RDF/Turtle) and uses a combination of data profiling, spaCy-based Named Entity 
-Recognition (NER), and ChatGPT suggestions to extract candidate ontology entities. These candidate 
-entities can then be matched against an ontology export using fuzzy matching techniques.
+## Quick Start  
+Follow these steps to get started with the ontology generator:
 
-## Installation and Setup
-
-1. **Clone the Repository**  
-   Clone the repository to your local machine.
-
-2. **Set Up a Virtual Environment** (recommended)  
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install Dependencies**  
-   Install the required Python libraries:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Download spaCy Model**  
-   **Note:** If you haven't installed spaCy or downloaded its English model, run:
-   ```bash
-   pip install spacy
-   python -m spacy download en_core_web_sm
-   ```
-
-5. **Install rapidfuzz for Fuzzy Matching**  
-   This project uses rapidfuzz for fuzzy string comparison. Install it via:
-   ```bash
-   pip install rapidfuzz
-   ```
-
-6. **Set the OpenAI API Key**  
-   The extraction process uses the OpenAI API (for ChatGPT queries and fuzzy matching via ChatGPT).  
-   Set your API key as an environment variable:
-   ```bash
-   export OPENAI_API_KEY="your_api_key"
-   ```
-   (On Windows, use `set OPENAI_API_KEY=your_api_key`)
-
-## Ontology Extraction and Matching
-
-### Ingestion and Entity Extraction
-
-The ingestion process consists of two main parts:
-
-- **Tabular Data Extraction (`extract.py`):**  
-  This module processes CSV/JSON files to extract candidate ontology entities from textual columns.
-  - For each column, up to five sample values are collected.
-  - Entities are extracted using spaCy NER and/or ChatGPT (if the API key is set).
-  - The function supports fuzzy matching against an ontology constraints file.
-  - Fuzzy matching can be performed either using rapidfuzz or by querying ChatGPT.
-
-- **Ontology Ingestion (`ontology.py`):**  
-  This module ingests RDF/Turtle ontology files and extracts candidate ontology entities (classes 
-  and properties) as human-readable labels (using rdfs:label, or local names as fallback).
-
-### Fuzzy Matching Options
-
-When extracting candidate entities from tabular data, you can compare them against an ontology 
-export (in JSON format) using fuzzy matching. You have two options:
-
-- **Rapidfuzz:** Uses the rapidfuzz library to compute token-sort similarity scores.  
-  (This is the default method.)
-- **ChatGPT:** Sends a prompt to ChatGPT to compare candidate entities with known ontology terms and return similar matches.
-
-You can select the fuzzy matching method by setting the `fuzzy_method` parameter in the extraction function.
-
-### Ontology Constraints File
-
-If you have a JSON export of your ontology entities (with an "entities" field containing "classes" 
-and "properties"), you can provide its path to the extraction function. The function will then perform fuzzy matching
-between the extracted candidate entities and the ontology constraints.
-
-Example ontology constraints JSON:
-
-```json
-{
-  "ontology_file": "data/ontologies/ies-building1.ttl",
-  "entities": {
-    "classes": [
-      "Accredited Energy Assessor",
-      "Addressable Location",
-      "... other class labels ..."
-    ],
-    "properties": [
-      "Estimated Energy Cost",
-      "Lodgement Date",
-      "... other property labels ..."
-    ]
-  }
-}
+### 1. Download and Install Dependencies  
+```sh  
+git clone https://github.com/National-Digital-Twin/ndtp-ai-ontology-extension.git
+cd ndtp-ai-ontology-extension
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-### Example Usage
-
-Import and use the extraction functions in your application:
-
-```python
-from src.ingestion.extract import process_data
-
-# Extract candidate entities from a CSV file using both spaCy and ChatGPT,
-# and perform fuzzy matching against an ontology constraints file using ChatGPT for fuzzy matching.
-results = process_data(
-    "data/raw/address_base_plus_john_2023-10-06_122302.csv",
-    output_path="results/candidate_entities.json",
-    method="both",
-    ontology_constraints_path="data/ontologies/ontology_export.json",
-    fuzzy_threshold=80,
-    fuzzy_method="chatgpt"  # or "rapidfuzz"
-)
-print(results)
+### 2. Configure Environment
+```sh
+export OPENAI_API_KEY="your_api_key"  # On Windows: set OPENAI_API_KEY=your_api_key
+python -m spacy download en_core_web_sm
 ```
 
-### Output Folder
-
-It is recommended to store output files in the `results` folder. The extraction functions will 
-automatically create this folder if it does not exist.
-
-### Next Steps
-
-Once candidate entities are extracted and matched against your ontology constraints, you can use them to:
-
-- Define or extend your ontology.
-- Build mapping configurations to convert raw data into RDF (using transformation scripts).
-- Validate the transformed data using validation scripts (e.g., SHACL constraints or SPARQL queries).
-
-## Ontology Generation
-
-The project includes a generation module that uses Large Language Models (LLMs) to generate and refine ontology snippets in Turtle format.
-
-### LLM-Based Generation
-
-The `src/generation` module provides functionality to:
-
-- Generate ontology snippets from instructions, common templates, and sample data
-- Compare generated snippets with reference snippets
-- Refine generation instructions based on comparison results
-
-Key components include:
-
-- **llm_interface.py**: Functions for interacting with LLMs, including:
-  - `generate_ttl_snippet()`: Generates Turtle snippets based on prompts
-  - `compare_snippets()`: Compares generated snippets with reference snippets
-  - `refine_instructions()`: Refines instructions based on error feedback
-
-### Iterative Refinement
-
-The generation module implements an iterative workflow that:
-
-1. Generates an ontology snippet based on instructions
-2. Compares it with a reference snippet
-3. Identifies missing or extra entities and states
-4. Refines the instructions to address the issues
-5. Repeats the process until convergence
-
-The `iteration.py` module provides checkpoint management for resuming iterations:
-
-- `load_checkpoint()`: Loads the most recent iteration state
-- `save_checkpoint()`: Saves the current iteration state
-- `get_iteration_history()`: Retrieves the complete history of iterations
-
-### Generate Ontology Usage
-
-The project includes a script for generating ontology snippets using LLMs with an iterative refinement approach:
-
-```bash
-python -m scripts.generate_ontology \
-    --common-snippet data/generation/common_template.ttl \
-    --csv-file data/generation/data_building_123003.csv \
-    --reference-snippet data/generation/building_ontology.ttl \
-    --instructions data/generation/initial_prompt.txt
+Add OPENAI_API_KEY also into `.streamlit/secrets.toml` as
+```toml
+OPENAI_API_KEY = "your_api_key"
 ```
 
-Key parameters:
+### 3. Launch Application
+```sh
+streamlit run app/main.py
+```
 
-- `--common-snippet`: Common ontology template
-- `--csv-file`: Sample data file
-- `--reference-snippet`: Reference ontology snippet
-- `--instructions`: Initial instructions file
-- `--model`: OpenAI model (default: o3-mini)
-- `--output`: Output path (default: results/final_ontology.ttl)
+### 4. Uninstallation  
+```sh
+deactivate  # Exit virtual environment
+rm -rf ndtp-ai-ontology-extension  # Remove repository
+```
 
-The script iteratively generates and refines ontology snippets by comparing with a reference, stopping when no differences are found or after reaching maximum iterations.
+## Features  
+- **AI-Powered Ontology Generation:** Automated extraction and generation of ontology entities using LLMs
+- **Interactive Web Interface:** Step-by-step wizard for ontology development
+- **Multi-Format Support:** Processes CSV, JSON, and RDF/Turtle data sources
+- **Validation & Analysis:** Built-in tools for ontology validation and visualization
+- **Iterative Refinement:** AI-assisted improvement of generated ontologies
 
-## Streamlit Application for Generation
-
-The project includes a Streamlit web application that provides a user-friendly interface for ontology generation through a step-by-step wizard interface.
-
-### Features
-
-The application is organised into 4 main sections:
+## Usage Guide
+The Streamlit application provides a four-step wizard interface:
 
 1. **Data Input**
-   - Upload and validate input data
-   - View data preview and statistics
+   - Upload source data (CSV, JSON, RDF)
+   - Preview and validate input
+   - Configure data processing settings
 
 2. **Data Processing**
-   - Run automated analysis on uploaded data
-   - Extract triples and concepts
-   - View processing results in JSON format
+   - Extract entities using NER and AI
+   - Perform fuzzy matching
+   - Review extracted candidates
 
 3. **Ontology Generation**
-   - Configure AI instructions and guidelines
-   - Control iteration parameters (chunk size and start position)
-   - Provide ontology feedback
-   - Generate ontology snippets iteratively
+   - Configure AI generation parameters
+   - Generate ontology snippets
+   - Iteratively refine results
 
 4. **Validation**
-   - Review and validate generated ontology
-   - Compare with reference snippets
+   - Review generated ontology
+   - Compare with references
    - Export final results
 
-### Running the App
+## Public Funding Acknowledgment  
+This repository has been developed with public funding as part of the National Digital Twin Programme (NDTP), a UK Government initiative. NDTP, alongside its partners, has invested in this work to advance open, secure, and reusable digital twin technologies for any organisation, whether from the public or private sector, irrespective of size.  
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+## License  
+This repository contains both source code and documentation, which are covered by different licenses:  
+- **Code:** Licensed under the Apache License 2.0.  
+- **Documentation:** Licensed under the Open Government Licence v3.0.  
 
-2. **Set up OpenAI API Key**
-   The app requires an OpenAI API key, which can be provided in either:
-   - Environment variable: `export OPENAI_API_KEY="your_api_key"`
-   - Streamlit secrets file: Create `.streamlit/secrets.toml` with:
-     ```toml
-     OPENAI_API_KEY = "your_api_key"
-     ```
+See `LICENSE.md`, `OGL_LICENCE.md`, and `NOTICE.md` for details.  
 
-3. **Launch the App**
-   ```bash
-   streamlit run app/main.py
-   ```
+## Security and Responsible Disclosure  
+We take security seriously. If you believe you have found a security vulnerability in this repository, please follow our responsible disclosure process outlined in `SECURITY.md`.  
 
-4. **Using the App**
-   - Follow the step-by-step wizard interface
-   - Each section must be completed in order
-   - Progress is tracked and saved in the application state
-   - Use the sidebar navigation to move between sections
+## Contributing  
+We welcome contributions that align with the Programme's objectives. Please read our `CONTRIBUTING.md` guidelines before submitting pull requests.  
 
-## Analysis and Visualization
+## Acknowledgements  
+This repository has benefited from collaboration with various organisations. For a list of acknowledgments, see `ACKNOWLEDGEMENTS.md`.  
 
-### Embedding Analysis
+## Support and Contact  
+For questions or support, check our Issues or contact the NDTP team on ndtp@businessandtrade.gov.uk.
 
-The project includes tools for analysing ontology data using embeddings:
+**Maintained by the National Digital Twin Programme (NDTP).**  
 
-- `scripts/analyse_ontology.py`: Analyses similarities between entities across different namespaces
-- Visualises relationships using t-SNE projections for:
-  - Namespace similarities
-  - Column mappings
-  - Value mappings
-
-### Namespace Analysis
-
-The analysis module can:
-
-- Extract entities from TTL files and create string representations
-- Group entities by namespace
-- Find similar entities within and across namespaces
-- Generate interactive visualizations to explore relationships
-
-For more details, see the [embedding analysis documentation](docs/embedding_analysis/embedding_analysis.md).
-
-## Folder Structure
-
-The project is organized as follows:
-
-```plaintext
-ndtp-ai-ontology-extension/
-├── .github/                  
-├── data/                           # Data directory
-├── src/                            # Core library code
-│   ├── ingestion/                  # Ingestion and extraction functions
-│   ├── generation/                 # Ontology generation functions
-│   ├── analysis/                   # Analysis and visualization functions
-│   └── validation/                 # Ontology validation functions
-├── tests/                          # Test scripts
-├── scripts/                  
-│   ├── analyse_ontology.py
-│   ├── extract_entities_ttl.py
-│   ├── extract_entities.py
-│   └── generate_ontology.py
-├── app/                            # Streamlit application
-│   ├── components/                 # Application components
-│   ├── views/                      # UI views
-│   └── utils/                      # Utility functions
-├── .streamlit/                      
-│   └── config.toml                 # Streamlit settings
-├── docs/                           
-│   └── embedding_analysis/         # Documentation for embedding analysis
-├── requirements.txt
-└── README.md
-```
-
-## Security
-
-If you've found a vulnerability, we would like to know so we can fix it. For full details on how to tell us about vulnerabilities, see our security policy.
-
-## License
-
-Unless stated otherwise, the codebase is released under the MIT License. See [LICENSE](LICENSE.md) for more information.
-
-## Contributing
-
-Contributions and feedback are welcome. Feel free to extend the ingestion helpers to support additional 
-data formats or integrate other AI models for improved extraction and matching.
-
-Please see the [CONTRIBUTING.md](.github/CONTRIBUTING.md) file for more information on our contribution guidelines.
-
-## Acknowledgements
-
-The development of these works has been made possible with thanks to our [contributors](https://github.com/National-Digital-Twin/ndtp-ai-ontology-extension/graphs/contributors).
+© Crown Copyright 2025. This work has been developed by the National Digital Twin Programme and is legally attributed to the Department for Business and Trade (UK) as the governing entity.
