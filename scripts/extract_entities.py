@@ -36,8 +36,11 @@ CANDIDATE_ENTITIES_CLASSIFIED_JSON = (
 )
 
 
-# Initialise OpenAI client (make sure API key is set in environment variables)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialise client against local Ollama (OpenAI-compatible API, no real key needed)
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY", "ollama"),
+    base_url=os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1"),
+)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, ".."))

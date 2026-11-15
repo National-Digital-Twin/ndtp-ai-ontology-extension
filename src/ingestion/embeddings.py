@@ -27,10 +27,9 @@ import os
 from openai import OpenAI
 
 
-# Set up OpenAI API key from the environment (non-fatal if missing)
-openai_api_key = os.getenv("OPENAI_API_KEY")
-if openai_api_key is None:
-    print("Warning: OPENAI_API_KEY is not set. Embedding generation will fail.")
+# Set up Ollama connection details (OpenAI-compatible API, no real key needed)
+openai_api_key = os.getenv("OPENAI_API_KEY", "ollama")
+openai_base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
 
 
 def initialize_vector_store(dimension):
@@ -99,12 +98,12 @@ def load_vector_store(filename_prefix, directory="data/vector_store"):
     return index, metadata
 
 
-def embed_texts(texts, model="text-embedding-3-small"):
-    """Generate embeddings for a list of texts using OpenAI
+def embed_texts(texts, model="nomic-embed-text"):
+    """Generate embeddings for a list of texts using a local Ollama model
 
     Args:
         texts: List of text strings to embed
-        model: OpenAI embedding model name
+        model: Ollama embedding model name
 
     Returns:
         List of embeddings as numpy arrays
@@ -112,23 +111,19 @@ def embed_texts(texts, model="text-embedding-3-small"):
     return embed_texts_openai(texts, model)
 
 
-def embed_texts_openai(texts, model_name="text-embedding-3-small"):
-    """Generate embeddings using OpenAI's API
+def embed_texts_openai(texts, model_name="nomic-embed-text"):
+    """Generate embeddings using Ollama's OpenAI-compatible API
 
     Args:
         texts: List of text strings to embed
-        model_name: OpenAI embedding model name
+        model_name: Ollama embedding model name
 
     Returns:
         List of embeddings as numpy arrays
     """
-    if not openai_api_key:
-        print("Warning: Cannot generate embeddings because OPENAI_API_KEY is not set.")
-        return np.array([])
+    client = OpenAI(api_key=openai_api_key, base_url=openai_base_url)
 
-    client = OpenAI(api_key=openai_api_key)
-
-    # Process in batches if needed (OpenAI has input limits)
+    # Process in batches if needed
     batch_size = 100
     all_embeddings = []
 
@@ -139,7 +134,7 @@ def embed_texts_openai(texts, model_name="text-embedding-3-small"):
             batch_embeddings = [item.embedding for item in response.data]
             all_embeddings.extend(batch_embeddings)
         except Exception as e:
-            print(f"Error calling OpenAI API for embeddings: {e}")
+            print(f"Error calling Ollama API for embeddings: {e}")
             return np.array([])
 
     return np.array(all_embeddings)

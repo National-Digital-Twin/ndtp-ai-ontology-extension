@@ -33,7 +33,7 @@ from src.generation.iteration import load_checkpoint, save_checkpoint
 
 # Default configuration
 DEFAULT_MAX_ITERATIONS = 5
-DEFAULT_MODEL = "o3-mini"
+DEFAULT_MODEL = "llama3.2"
 
 
 def load_common_snippet(file_path: Path) -> str:
@@ -107,7 +107,7 @@ def parse_arguments():
         "--model",
         type=str,
         default=DEFAULT_MODEL,
-        help=f"OpenAI model to use (default: {DEFAULT_MODEL})",
+        help=f"Ollama model to use (default: {DEFAULT_MODEL})",
     )
     parser.add_argument(
         "--output",
@@ -132,11 +132,6 @@ def main():
         --output results/final_ontology.ttl
     """
     args = parse_arguments()
-
-    if not os.environ.get("OPENAI_API_KEY"):
-        print("Error: OPENAI_API_KEY environment variable is not set.")
-        print("Please set it using: export OPENAI_API_KEY='your-api-key'")
-        sys.exit(1)
 
     common_snippet_path = Path(args.common_snippet)
     csv_file_path = Path(args.csv_file)
@@ -177,10 +172,10 @@ def main():
         print("Exiting.")
         sys.exit(0)
 
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable not set")
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(
+        api_key=os.environ.get("OPENAI_API_KEY", "ollama"),
+        base_url=os.environ.get("OPENAI_BASE_URL", "http://localhost:11434/v1"),
+    )
 
     # Iterative refinement loop
     while iteration < args.max_iterations:

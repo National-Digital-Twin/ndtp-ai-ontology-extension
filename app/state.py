@@ -40,7 +40,7 @@ class AppState:
     comparison_result: Optional[str] = None
 
     # Configuration
-    model: str = "o3-mini"
+    model: str = "llama3.2"
     output_filename: str = "ontology.ttl"
     chunk_start: int = 0
     chunk_size: int = 25
@@ -61,10 +61,9 @@ class AppState:
         """Initialize all required session state variables."""
         if "app_state" not in st.session_state:
             st.session_state.app_state = cls()
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                api_key = st.secrets["OPENAI_API_KEY"]
-            st.session_state.app_state.client = OpenAI(api_key=api_key)
+            api_key = os.getenv("OPENAI_API_KEY", "ollama")
+            base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+            st.session_state.app_state.client = OpenAI(api_key=api_key, base_url=base_url)
             log("Initialized application state")
 
     @staticmethod

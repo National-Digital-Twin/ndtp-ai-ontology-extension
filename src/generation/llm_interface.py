@@ -48,7 +48,7 @@ def build_prompt_for_generation(
 
 
 def generate_ttl_snippet(
-    client: OpenAI, prompt_text: str, model: str = "o3-mini"
+    client: OpenAI, prompt_text: str, model: str = "llama3.2"
 ) -> str:
     """
     Calls an LLM to produce a Turtle snippet based on the provided prompt.
@@ -78,7 +78,7 @@ def refine_instructions(
     client: OpenAI,
     error_summary: str,
     original_instructions: str,
-    model: str = "o3-mini",
+    model: str = "llama3.2",
 ) -> str:
     """
     Refine ontology creation instructions based on error feedback.
@@ -124,7 +124,7 @@ Return only the refined instructions, with no additional commentary.
 
 
 def compare_snippets(
-    client: OpenAI, generated_ttl: str, reference_ttl: str, model: str = "o3-mini"
+    client: OpenAI, generated_ttl: str, reference_ttl: str, model: str = "llama3.2"
 ) -> dict:
     """
     Use an LLM to compare generated TTL with a reference TTL, focusing on

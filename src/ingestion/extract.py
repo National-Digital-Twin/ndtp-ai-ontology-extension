@@ -92,7 +92,7 @@ def extract_entities_chatgpt(
     column_name: str,
     sample_values: list[str],
     candidate_type: str = "entity",
-    chatgpt_model: str = "gpt-4o-mini",
+    chatgpt_model: str = "llama3.2",
     classify_candidates: bool = False,
 ):
     """
@@ -216,7 +216,7 @@ def fuzzy_matches_chatgpt(
     chunk_size: int = 200,
     top_n: int = 20,
     candidate_type: str = "entity",
-    chatgpt_model: str = "gpt-4o-mini",
+    chatgpt_model: str = "llama3.2",
     classify_candidates: bool = False,
 ):
     """
@@ -346,7 +346,7 @@ def fuzzy_matches_chatgpt(
 def verify_and_fix_column_structure(
     client: OpenAI,
     column_data: dict,
-    chatgpt_model: str = "gpt-4o-mini",
+    chatgpt_model: str = "llama3.2",
 ):
     """
     Verify that a column's output exactly matches the expected structure:
@@ -437,7 +437,7 @@ def process_data(
     fuzzy_method: str = "rapidfuzz",
     chunk_size: int = 200,
     top_n: int = 20,
-    chatgpt_model: str = "gpt-4o-mini",
+    chatgpt_model: str = "llama3.2",
     candidate_type: str = "entity",
     classify_candidates: bool = False,
     verify_structure: bool = False,

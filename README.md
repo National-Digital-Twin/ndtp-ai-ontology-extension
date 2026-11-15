@@ -38,6 +38,15 @@ Add OPENAI_API_KEY also into `.streamlit/secrets.toml` as
 OPENAI_API_KEY = "your_api_key"
 ```
 
+Local LLM: All real OpenAI call paths now point at local Ollama server (http://localhost:11434/v1) with llama3.2 as the default chat model and nomic-embed-text for embeddings. Changes made:
+
+app/state.py — client base_url + default model
+src/ingestion/embeddings.py — client base_url, dropped the hard API-key requirement, default embed model → nomic-embed-text
+scripts/extract_entities.py — client base_url
+scripts/generate_ontology.py — client base_url, DEFAULT_MODEL → llama3.2, removed the now-pointless OPENAI_API_KEY presence check
+src/ingestion/extract.py — 4x chatgpt_model default → llama3.2
+src/generation/llm_interface.py — 3x model default → llama3.2
+Before running: ollama pull llama3.2 and ollama pull nomic-embed-text, and make sure ollama serve is running on port 11434.
 ### 3. Launch Application
 ```sh
 streamlit run app/main.py
